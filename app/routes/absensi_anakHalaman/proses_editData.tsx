@@ -1,12 +1,12 @@
-import type { Route } from "./+types/database.tambah";
+import type { Route } from "./+types/proses_editData";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
-import { supabase } from "../supabase_connection";
+import { useNavigate, useParams, useSearchParams } from "react-router";
+import { supabase } from "../../supabase_connection";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "Database - Tambah Data" },
-    { name: "description", content: "Tambah Data Database" },
+    { title: "Absensi - Edit Data" },
+    { name: "description", content: "Edit Data Generus" },
   ];
 }
 
@@ -19,8 +19,12 @@ type DatabaseItem = {
   status: "Pelajar" | "Lulus Pelajar" | "Mahasiswa" | "Mahasiswa & Kerja" | "Lulus Kuliah" | "Kerja" | "MS" | "MT";
 };
 
-export default function DatabaseTambah() {
+export default function ProsesEditData() {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const kegiatanId = searchParams.get('kegiatan_id');
+  const [currentItem, setCurrentItem] = useState<DatabaseItem | null>(null);
   
   // Form state
   const [nama, setNama] = useState("");
@@ -32,6 +36,42 @@ export default function DatabaseTambah() {
   // Validation state
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+
+  // Load current item from Supabase
+  useEffect(() => {
+    async function fetchItem() {
+      if (!id) {
+        navigate(kegiatanId ? `/absensi/edit/${kegiatanId}` : "/absensi");
+        return;
+      }
+      
+      try {
+        const { data, error } = await supabase
+          .from('data_generus')
+          .select('*')
+          .eq('id', id)
+          .single();
+        
+        if (error || !data) {
+          console.error('Error fetching item:', error);
+          navigate(kegiatanId ? `/absensi/edit/${kegiatanId}` : "/absensi");
+          return;
+        }
+        
+        setCurrentItem(data);
+        setNama(data.nama);
+        setJenisKelamin(data.jenis_kelamin);
+        setKelompok(data.kelompok);
+        setTanggalLahir(data.tgl_lahir);
+        setStatus(data.status);
+      } catch (error) {
+        console.error('Error:', error);
+        navigate(kegiatanId ? `/absensi/edit/${kegiatanId}` : "/absensi");
+      }
+    }
+    
+    fetchItem();
+  }, [id, navigate]);
 
   function validateForm() {
     const newErrors: Record<string, string> = {};
@@ -49,31 +89,29 @@ export default function DatabaseTambah() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     
-    if (!validateForm()) return;
+    if (!validateForm() || !currentItem) return;
     
     setLoading(true);
     
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('data_generus')
-        .insert([
-          {
-            nama: nama.trim(),
-            jenis_kelamin: jenisKelamin as "L" | "P",
-            kelompok: kelompok as DatabaseItem["kelompok"],
-            tgl_lahir: tanggalLahir,
-            status: status as DatabaseItem["status"],
-          }
-        ])
-        .select();
+        .update({
+          nama: nama.trim(),
+          jenis_kelamin: jenisKelamin as "L" | "P",
+          kelompok: kelompok as DatabaseItem["kelompok"],
+          tgl_lahir: tanggalLahir,
+          status: status as DatabaseItem["status"],
+        })
+        .eq('id', currentItem.id);
       
       if (error) {
-        console.error('Error inserting data:', error);
+        console.error('Error updating data:', error);
         setLoading(false);
         return;
       }
       
-      navigate("/database");
+      navigate(kegiatanId ? `/absensi/edit/${kegiatanId}` : "/absensi");
     } catch (error) {
       console.error('Error:', error);
       setLoading(false);
@@ -81,12 +119,23 @@ export default function DatabaseTambah() {
   }
 
   function handleCancel() {
-    navigate("/database");
+    navigate(kegiatanId ? `/absensi/edit/${kegiatanId}` : "/absensi");
+  }
+
+  if (!currentItem) {
+    return (
+      <section className="space-y-4">
+        <h2 className="text-2xl font-bold text-gray-900 inline-block border-b-2 border-sky-400 pb-1">Absensi - Edit Data</h2>
+        <div className="rounded-xl border border-gray-200 bg-white p-6 text-center">
+          <p className="text-gray-500">Memuat data...</p>
+        </div>
+      </section>
+    );
   }
 
   return (
     <section className="space-y-4">
-      <h2 className="text-2xl font-bold text-gray-900 inline-block border-b-2 border-sky-400 pb-1">Database - Tambah Data</h2>
+      <h2 className="text-2xl font-bold text-gray-900 inline-block border-b-2 border-sky-400 pb-1">Absensi - Edit Data</h2>
 
       <form onSubmit={handleSubmit} className="rounded-xl border border-gray-200 bg-white p-6 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

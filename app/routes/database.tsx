@@ -2,6 +2,7 @@ import type { Route } from "./+types/database";
 import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router";
 import { supabase } from "../supabase_connection";
+import * as XLSX from 'xlsx';
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -21,7 +22,6 @@ type DatabaseItem = {
 
 export default function Database() {
   const [items, setItems] = useState<DatabaseItem[]>([]);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   
   // Search and pagination state
@@ -78,7 +78,8 @@ export default function Database() {
         new Date(item.tgl_lahir).toLocaleDateString("id-ID").toLowerCase().includes(q)
       );
     });
-    // Data is already sorted by created_at from Supabase
+    // Sort data alphabetically by name
+    data = data.sort((a, b) => a.nama.localeCompare(b.nama));
     return data;
   }, [items, query]);
 
@@ -94,7 +95,22 @@ export default function Database() {
   }, [query]);
 
   async function remove(id: number) {
+    if (!confirm("Apakah Anda yakin ingin menghapus data ini?")) return;
+    
     try {
+      // First, delete related absensi records
+      const { error: absensiError } = await supabase
+        .from('absensi')
+        .delete()
+        .eq('generus_id', id);
+      
+      if (absensiError) {
+        console.error('Error deleting related absensi records:', absensiError);
+        alert('Error deleting related attendance records: ' + absensiError.message);
+        return;
+      }
+      
+      // Then delete the data_generus record
       const { error } = await supabase
         .from('data_generus')
         .delete()
@@ -102,38 +118,78 @@ export default function Database() {
       
       if (error) {
         console.error('Error deleting data:', error);
+        alert('Error deleting data: ' + error.message);
         return;
       }
       
       setItems((prev) => prev.filter((it) => it.id !== id));
-      setShowDeleteConfirm(null);
+      alert('Data berhasil dihapus!');
     } catch (error) {
       console.error('Error:', error);
+      alert('Unexpected error occurred while deleting data.');
     }
   }
 
-  function confirmDelete(id: number) {
-    setShowDeleteConfirm(id);
-  }
-
-  function cancelDelete() {
-    setShowDeleteConfirm(null);
-  }
-
-  function formatDate(iso: string) {
+  function formatDate(dateString: string): string {
     try {
-      return new Date(iso).toLocaleDateString("id-ID", { year: "numeric", month: "long", day: "numeric" });
+      const date = new Date(dateString);
+      return date.toLocaleDateString('id-ID');
     } catch {
-      return iso;
+      return dateString;
+    }
+  }
+
+  function exportToExcel() {
+    try {
+      // Use filtered data for export
+      const dataToExport = filteredAndSorted.map((item, index) => ({
+        'No': index + 1,
+        'Nama': item.nama,
+        'Jenis Kelamin': item.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan',
+        'Kelompok': item.kelompok,
+        'Tanggal Lahir': formatDate(item.tgl_lahir),
+        'Status': item.status
+      }));
+
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(dataToExport);
+
+      // Set column widths
+      const colWidths = [
+        { wch: 5 },  // No
+        { wch: 25 }, // Nama
+        { wch: 15 }, // Jenis Kelamin
+        { wch: 20 }, // Kelompok
+        { wch: 15 }, // Tanggal Lahir
+        { wch: 20 }  // Status
+      ];
+      ws['!cols'] = colWidths;
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, 'Data Generus');
+
+      // Generate filename with current date
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      const filename = `data_generus_${dateStr}.xlsx`;
+
+      // Save file
+      XLSX.writeFile(wb, filename);
+      
+      alert(`Data berhasil diekspor ke file ${filename}`);
+    } catch (error) {
+      console.error('Error exporting data:', error);
+      alert('Terjadi kesalahan saat mengekspor data');
     }
   }
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-4 fade-in">
       <h2 className="text-2xl font-bold text-gray-900 inline-block border-b-2 border-sky-400 pb-1">Database</h2>
 
       {/* Search and Action Buttons */}
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 fade-in-stagger">
         <div className="flex items-end gap-2">
           <div>
             <label className="block text-xs font-medium text-gray-600">Pencarian</label>
@@ -141,16 +197,21 @@ export default function Database() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Cari nama, jenis kelamin, kelompok, status, atau tanggal lahir"
-              className="mt-1 w-64 rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-400"
+              className="mt-1 w-full sm:w-64 rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-400"
             />
           </div>
         </div>
-        <div className="flex gap-3">
-          <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">Import Data</button>
-          <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">Export Data</button>
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+          <button className="text-blue-600 hover:text-blue-800 text-sm font-medium px-3 py-2 rounded-md border border-blue-200 hover:bg-blue-50 w-full sm:w-auto text-center">Import Data</button>
+          <button 
+            onClick={exportToExcel}
+            className="text-blue-600 hover:text-blue-800 text-sm font-medium px-3 py-2 rounded-md border border-blue-200 hover:bg-blue-50 w-full sm:w-auto text-center"
+          >
+            Export Data
+          </button>
           <Link
             to="/database/tambah"
-            className="inline-flex items-center gap-2 rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600"
+            className="inline-flex items-center gap-2 rounded-md bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600 w-full sm:w-auto justify-center"
           >
             Tambah Data
           </Link>
@@ -185,19 +246,21 @@ export default function Database() {
                   <td className="px-4 py-2 text-gray-700">{item.kelompok}</td>
                   <td className="px-4 py-2 text-gray-700">{formatDate(item.tgl_lahir)}</td>
                   <td className="px-4 py-2 text-gray-700">{item.status}</td>
-                  <td className="px-4 py-2 text-right space-x-2">
-                    <Link
-                      to={`/database/edit/${item.id}`}
-                      className="inline-flex items-center rounded-md border border-gray-200 bg-white px-3 py-1.5 text-gray-700 text-xs font-medium hover:bg-gray-50"
-                    >
-                      Edit
-                    </Link>
-                    <button 
-                      onClick={() => confirmDelete(item.id)}
-                      className="inline-flex items-center rounded-md bg-rose-500 px-3 py-1.5 text-white text-xs font-medium hover:bg-rose-600"
-                    >
-                      Hapus
-                    </button>
+                  <td className="px-4 py-2 text-right">
+                    <div className="flex flex-col sm:flex-row items-center justify-end gap-1 sm:gap-2">
+                      <Link
+                        to={`/database/edit/${item.id}`}
+                        className="inline-flex items-center rounded-md bg-blue-500 px-3 py-1.5 text-white text-xs font-medium hover:bg-blue-600 w-full sm:w-auto justify-center"
+                      >
+                        Edit
+                      </Link>
+                      <button 
+                        onClick={() => remove(item.id)}
+                        className="inline-flex items-center rounded-md bg-rose-500 px-3 py-1.5 text-white text-xs font-medium hover:bg-rose-600 w-full sm:w-auto justify-center"
+                      >
+                        Hapus
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -212,9 +275,9 @@ export default function Database() {
         
         {/* Pagination */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 border-t border-gray-100">
-          <div className="flex items-center gap-2">
-            <button onClick={() => setPage(1)} disabled={currentPage === 1} className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs disabled:opacity-50">First</button>
-            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs disabled:opacity-50">Prev</button>
+          <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+            <button onClick={() => setPage(1)} disabled={currentPage === 1} className="rounded-md border border-sky-400 bg-sky-400 text-white px-2 py-1 text-xs disabled:opacity-50 hover:bg-sky-500">First</button>
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} className="rounded-md border border-sky-400 bg-sky-400 text-white px-2 py-1 text-xs disabled:opacity-50 hover:bg-sky-500">Prev</button>
             {Array.from({ length: totalPages }).slice(Math.max(0, currentPage - 3), Math.max(0, currentPage - 3) + 5).map((_, i) => {
               const n = Math.max(1, currentPage - 2) + i;
               if (n > totalPages) return null;
@@ -223,9 +286,9 @@ export default function Database() {
                 <button key={n} onClick={() => setPage(n)} className={(active ? "bg-sky-500 text-white " : "bg-white text-gray-700 ") + "rounded-md border border-gray-200 px-2 py-1 text-xs"}>{n}</button>
               );
             })}
-            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs disabled:opacity-50">Next</button>
-            <button onClick={() => setPage(totalPages)} disabled={currentPage === totalPages} className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs disabled:opacity-50">Last</button>
-            <div className="ml-2 flex items-center gap-1 text-xs text-gray-700">
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="rounded-md border border-sky-400 bg-sky-400 text-white px-2 py-1 text-xs disabled:opacity-50 hover:bg-sky-500">Next</button>
+            <button onClick={() => setPage(totalPages)} disabled={currentPage === totalPages} className="rounded-md border border-sky-400 bg-sky-400 text-white px-2 py-1 text-xs disabled:opacity-50 hover:bg-sky-500">Last</button>
+            <div className="ml-0 sm:ml-2 flex flex-col sm:flex-row items-start sm:items-center gap-1 text-xs text-gray-700 mt-2 sm:mt-0">
               <span>Go to</span>
               <input type="number" min={1} max={totalPages} value={currentPage} onChange={(e) => setPage(Math.min(totalPages, Math.max(1, Number(e.target.value) || 1)))} className="w-16 rounded-md border border-gray-300 px-2 py-1 text-gray-900" />
             </div>
@@ -236,29 +299,7 @@ export default function Database() {
         </div>
       </div>
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Konfirmasi Hapus</h3>
-            <p className="text-gray-600 mb-6">Yakin ingin menghapus data?</p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={cancelDelete}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-              >
-                Tidak
-              </button>
-              <button
-                onClick={() => remove(showDeleteConfirm)}
-                className="px-4 py-2 text-white bg-red-500 rounded-md hover:bg-red-600"
-              >
-                Ya
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </section>
   );
 }

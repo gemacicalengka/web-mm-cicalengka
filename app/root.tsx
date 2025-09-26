@@ -6,12 +6,17 @@ import {
   Scripts,
   ScrollRestoration,
   NavLink,
+  useLocation,
+  useNavigate,
 } from "react-router";
 import { useEffect, useRef, useState } from "react";
 import type { JSX } from "react";
-
+// 
 import type { Route } from "./+types/root";
+import { authUtils } from "./utils/auth";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import "./app.css";
+import "./styles/animations.css";
 
 export const links: Route.LinksFunction = () => [
   { rel: "icon", href: "/logo-gema.svg", type: "image/svg+xml" },
@@ -46,6 +51,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
     try {
       if (typeof window !== "undefined") {
@@ -53,16 +60,29 @@ export default function App() {
         if (stored !== null) return stored === "true";
       }
     } catch {}
-    return true;
+    return false;
   });
   const [mounted, setMounted] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
   const profileRef = useRef<HTMLDivElement | null>(null);
+
+  // Check if current route is login page
+  const isLoginPage = location.pathname === '/login' || location.pathname === '/';
 
   // Mark mounted to enable transitions after first paint
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Check authentication and get current user
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const user = authUtils.getCurrentUser();
+      setCurrentUser(user?.username || null);
+    }
+  }, [location.pathname]);
 
   // Persist sidebar state on change
   useEffect(() => {
@@ -83,40 +103,71 @@ export default function App() {
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  // Note: dropdown closes on outside click; header uses static title
+  // Handle logout
+  const handleLogout = () => {
+    authUtils.logout();
+    setCurrentUser(null);
+    setProfileOpen(false);
+    navigate('/');
+  };
 
+  // If it's login page, render without sidebar and header
+  if (isLoginPage) {
+    return (
+      <div className="min-h-dvh bg-gray-50">
+        <Outlet />
+      </div>
+    );
+  }
+
+  // For protected routes, wrap with ProtectedRoute
   return (
-    <div className={(mounted ? "" : "opacity-0 ") + "min-h-dvh flex bg-white"}>
+    <ProtectedRoute>
+      <div className={(mounted ? "" : "opacity-0 ") + "min-h-dvh flex bg-white"}>
       {/* Sidebar */}
       <aside
         className={
-          (mounted ? "transition-all duration-500 ease-in-out " : "") +
+          (mounted ? "transition-all duration-700 ease-out " : "") +
           "border-r border-gray-200 bg-white " +
-          (sidebarOpen ? "w-64" : "w-16")
+          (sidebarOpen ? "w-64" : "w-16") + " " +
+          "hidden md:block"
         }
       >
-        <div className="h-16 flex items-center gap-2 px-3">
+        <div className="h-16 flex items-center gap-2 px-3 overflow-hidden">
           <img 
             src="/logo-gema.svg" 
             alt="GEMA CICALENGKA" 
-            className="h-8 w-8"
+            className="h-8 w-8 flex-shrink-0"
           />
-          {sidebarOpen && (
-            <div className="text-sm font-semibold text-gray-800 transition-opacity duration-300 ease-in-out">GEMA CICALENGKA</div>
-          )}
+          <div 
+            className={
+              "text-sm font-semibold text-gray-800 whitespace-nowrap transition-all duration-700 ease-out " +
+              (sidebarOpen ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4")
+            }
+          >
+            GEMA CICALENGKA
+          </div>
         </div>
         <div className="px-2 pb-2">
           <button
             type="button"
             onClick={() => setSidebarOpen((v) => !v)}
-            className="w-full mb-2 inline-flex items-center justify-center gap-2 rounded-md border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-sky-50 transition-colors duration-200"
+            className="w-full mb-2 inline-flex items-center rounded-md border border-gray-300 px-3 py-2 text-xs font-medium text-gray-800 hover:bg-sky-50 hover:border-sky-300 transition-all duration-300 ease-out"
           >
-            {/* hamburger icon */}
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4"><path strokeWidth="1.5" strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16"/></svg>
-            {sidebarOpen && <span className="transition-opacity duration-300">MENU UTAMA</span>}
+            {/* hamburger icon - always visible */}
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4 flex-shrink-0 text-gray-800">
+              <path strokeWidth="2.5" strokeLinecap="round" d="M3 6h18"/>
+              <path strokeWidth="2.5" strokeLinecap="round" d="M3 12h18"/>
+              <path strokeWidth="2.5" strokeLinecap="round" d="M3 18h18"/>
+            </svg>
+            {sidebarOpen && (
+              <span className="ml-2 whitespace-nowrap transition-all duration-300 ease-out">
+                MENU UTAMA
+              </span>
+            )}
           </button>
           <nav className="space-y-1">
-            <SidebarLink to="/" label="Dashboard" open={sidebarOpen} icon={DashboardIcon} end />
+            <SidebarLink to="/dashboard" label="Dashboard" open={sidebarOpen} icon={DashboardIcon} />
             <SidebarLink to="/kegiatan" label="Kegiatan" open={sidebarOpen} icon={CalendarIcon} />
             <SidebarLink to="/absensi" label="Absensi" open={sidebarOpen} icon={CheckIcon} />
             <SidebarLink to="/database" label="Database" open={sidebarOpen} icon={DatabaseIcon} />
@@ -129,6 +180,17 @@ export default function App() {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <header className="h-16 bg-sky-400 flex items-center justify-between px-4 relative z-10">
+          {/* Mobile menu button */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden inline-flex items-center justify-center p-2 rounded-md text-white hover:bg-sky-500 focus:outline-none focus:ring-2 focus:ring-white"
+          >
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          
           <h1 className="text-lg font-semibold text-white">Admin Dashboard</h1>
           <div className="relative flex items-center gap-2" ref={profileRef}>
             <button
@@ -146,17 +208,14 @@ export default function App() {
               className="inline-flex items-center gap-2 rounded-md bg-white/90 px-3 py-2 text-sm font-medium text-sky-700 hover:bg-white"
             >
               <UserIcon className="h-5 w-5" />
-              <span className="hidden sm:inline">Akun</span>
+              <span className="hidden sm:inline">{currentUser || 'Akun'}</span>
               <ChevronDown className="h-4 w-4" />
             </button>
             {profileOpen && (
               <div className="absolute top-full right-0 mt-2 w-40 rounded-md border border-gray-200 bg-white shadow-lg z-20">
                 <button
                   className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                  onClick={() => {
-                    setProfileOpen(false);
-                    // Implement your logout navigation/action here
-                  }}
+                  onClick={handleLogout}
                 >
                   <LogoutIcon className="h-4 w-4" />
                   Log Out
@@ -165,6 +224,19 @@ export default function App() {
             )}
           </div>
         </header>
+
+        {/* Mobile Navigation Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden bg-white border-b border-gray-200 shadow-lg">
+            <nav className="px-4 py-2 space-y-1">
+              <MobileNavLink to="/dashboard" label="Dashboard" icon={DashboardIcon} onClick={() => setMobileMenuOpen(false)} />
+              <MobileNavLink to="/kegiatan" label="Kegiatan" icon={CalendarIcon} onClick={() => setMobileMenuOpen(false)} />
+              <MobileNavLink to="/absensi" label="Absensi" icon={CheckIcon} onClick={() => setMobileMenuOpen(false)} />
+              <MobileNavLink to="/database" label="Database" icon={DatabaseIcon} onClick={() => setMobileMenuOpen(false)} />
+              <MobileNavLink to="/laporan" label="Laporan" icon={ReportIcon} onClick={() => setMobileMenuOpen(false)} />
+            </nav>
+          </div>
+        )}
 
         {/* Content */}
         <main className="flex-1 bg-gray-50">
@@ -178,7 +250,8 @@ export default function App() {
           © {new Date().getFullYear()} MM Cicalengka. All rights reserved.
         </footer>
       </div>
-    </div>
+      </div>
+    </ProtectedRoute>
   );
 }
 
@@ -231,15 +304,22 @@ function SidebarLink({
       end={end}
       className={({ isActive }) =>
         (
-          "group flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors " +
+          "group flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all duration-300 ease-out overflow-hidden " +
           (isActive
             ? "bg-sky-100 text-sky-800"
             : "text-gray-700 hover:bg-sky-50")
         )
       }
     >
-      <Icon className="h-5 w-5 text-sky-600" />
-      {open && <span className="truncate">{label}</span>}
+      <Icon className="h-5 w-5 text-sky-600 flex-shrink-0" />
+      <span 
+        className={
+          "whitespace-nowrap transition-all duration-700 ease-out " +
+          (open ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4")
+        }
+      >
+        {label}
+      </span>
     </NavLink>
   );
 }
@@ -297,7 +377,35 @@ function ChevronDown({ className }: { className?: string }) {
 function LogoutIcon({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className={className}>
-      <path strokeWidth="1.5" d="M15 17l5-5-5-5m5 5H9m6 8H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/>
+      <path strokeWidth="1.5" d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
     </svg>
+  );
+}
+
+function MobileNavLink({
+  to,
+  label,
+  icon: Icon,
+  onClick,
+}: {
+  to: string;
+  label: string;
+  icon: (props: { className?: string }) => JSX.Element;
+  onClick: () => void;
+}) {
+  return (
+    <NavLink
+      to={to}
+      onClick={onClick}
+      className={({ isActive }) =>
+        "flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors " +
+        (isActive
+          ? "bg-sky-100 text-sky-700 border-l-4 border-sky-500"
+          : "text-gray-700 hover:bg-gray-100")
+      }
+    >
+      <Icon className="h-5 w-5 flex-shrink-0" />
+      <span>{label}</span>
+    </NavLink>
   );
 }
