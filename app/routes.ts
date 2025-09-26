@@ -12,5 +12,6 @@ export default [
   route("/database/tambah", "routes/database_anakHalaman/database.tambah.tsx"),
   route("/database/edit/:id", "routes/database_anakHalaman/database.edit.$id.tsx"),
   route("/laporan", "routes/laporan.tsx"),
+  route("/informasi", "routes/informasi.tsx"),
 ] satisfies RouteConfig;
 //

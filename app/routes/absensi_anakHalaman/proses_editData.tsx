@@ -2,6 +2,7 @@ import type { Route } from "./+types/proses_editData";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { supabase } from "../../supabase_connection";
+import { authUtils } from "../../utils/auth";
 
 export function meta({}: Route.MetaArgs) {
   return [

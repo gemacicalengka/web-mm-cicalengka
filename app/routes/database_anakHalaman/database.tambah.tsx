@@ -2,6 +2,7 @@ import type { Route } from "./+types/database.tambah";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { supabase } from "../../supabase_connection";
+import { authUtils } from "../../utils/auth";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -21,6 +22,14 @@ type DatabaseItem = {
 
 export default function DatabaseTambah() {
   const navigate = useNavigate();
+  
+  // Check permission - redirect if user doesn't have add permission
+  useEffect(() => {
+    if (!authUtils.hasPermission('add')) {
+      navigate("/database");
+      return;
+    }
+  }, [navigate]);
   
   // Form state
   const [nama, setNama] = useState("");

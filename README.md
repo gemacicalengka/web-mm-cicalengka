@@ -1,42 +1,46 @@
-# Web MM Cicalengka
+<<<<<<< HEAD
+# web-mm-cicalengka
 Database muda-mudi Cicalengka
+=======
+# Welcome to React Router!
 
-## Deskripsi
-Aplikasi web untuk mengelola database muda-mudi Desa Cicalengka yang dibangun menggunakan React Router dan Supabase.
+A modern, production-ready template for building full-stack React applications using React Router.
 
-## Fitur
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/remix-run/react-router-templates/tree/main/default)
+
+## Features
+
 - 🚀 Server-side rendering
 - ⚡️ Hot Module Replacement (HMR)
-- 📦 Asset bundling dan optimisasi
-- 🔄 Data loading dan mutations
+- 📦 Asset bundling and optimization
+- 🔄 Data loading and mutations
 - 🔒 TypeScript by default
-- 🎉 TailwindCSS untuk styling
-- 📊 Dashboard untuk monitoring
-- 👥 Manajemen database anggota
-- 📝 Sistem absensi
-- 📋 Laporan kegiatan
+- 🎉 TailwindCSS for styling
+- 📖 [React Router docs](https://reactrouter.com/)
 
-## Instalasi
+## Getting Started
 
-Install dependencies:
+### Installation
+
+Install the dependencies:
 
 ```bash
 npm install
 ```
 
-## Development
+### Development
 
-Jalankan development server:
+Start the development server with HMR:
 
 ```bash
 npm run dev
 ```
 
-Aplikasi akan tersedia di `http://localhost:5173`.
+Your application will be available at `http://localhost:5173`.
 
-## Building untuk Production
+## Building for Production
 
-Buat production build:
+Create a production build:
 
 ```bash
 npm run build

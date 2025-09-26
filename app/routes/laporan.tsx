@@ -341,6 +341,7 @@ export default function Laporan() {
               value={selectedKegiatan || ''}
               onChange={(e) => setSelectedKegiatan(Number(e.target.value))}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 text-gray-900"
+              style={{ maxHeight: '200px', overflowY: 'auto' }}
             >
               {kegiatan.map((item) => (
                 <option key={item.id} value={item.id} className="text-gray-900">

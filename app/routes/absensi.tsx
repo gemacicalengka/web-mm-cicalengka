@@ -47,7 +47,7 @@ export default function Absensi() {
 
   if (loading) {
     return (
-      <section className="space-y-4">
+      <section className="space-y-4 fade-in">
         <h2 className="text-2xl font-bold text-gray-900 inline-block border-b-2 border-sky-400 pb-1">Absensi</h2>
         <div className="text-center py-8">Loading...</div>
       </section>
@@ -72,7 +72,7 @@ export default function Absensi() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white divide-y divide-gray-200 fade-in-stagger">
               {kegiatan.map((item, index) => (
                 <tr key={item.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                   <td className="px-4 py-2 text-gray-700">{index + 1}</td>

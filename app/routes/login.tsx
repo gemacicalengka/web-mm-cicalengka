@@ -64,9 +64,11 @@ export default function Login() {
       }
 
       // Login successful, store user data and timestamp
+      const role = data.user_name === 'admin' ? 'admin' : 'limited';
       const userData = {
         username: data.user_name,
-        loginTime: new Date().getTime()
+        loginTime: new Date().getTime(),
+        role
       };
       
       localStorage.setItem('user_data', JSON.stringify(userData));
@@ -82,7 +84,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-sky-50 to-blue-100 flex items-center justify-center p-4 sm:p-6 lg:p-8 fade-in">
+    <div className="min-h-screen bg-gradient-to-br from-sky-50 to-blue-100 flex items-center justify-center p-4 sm:p-6 lg:p-8">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 space-y-6">
           {/* Logo */}

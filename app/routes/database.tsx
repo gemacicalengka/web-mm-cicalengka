@@ -2,6 +2,7 @@ import type { Route } from "./+types/database";
 import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router";
 import { supabase } from "../supabase_connection";
+import { authUtils } from "../utils/auth";
 import * as XLSX from 'xlsx';
 
 export function meta({}: Route.MetaArgs) {
@@ -209,12 +210,14 @@ export default function Database() {
           >
             Export Data
           </button>
-          <Link
-            to="/database/tambah"
-            className="inline-flex items-center gap-2 rounded-md bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600 w-full sm:w-auto justify-center"
-          >
-            Tambah Data
-          </Link>
+          {authUtils.hasPermission('add') && (
+            <Link
+              to="/database/tambah"
+              className="inline-flex items-center gap-2 rounded-md bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600 w-full sm:w-auto justify-center"
+            >
+              Tambah Data
+            </Link>
+          )}
         </div>
       </div>
 
@@ -248,18 +251,22 @@ export default function Database() {
                   <td className="px-4 py-2 text-gray-700">{item.status}</td>
                   <td className="px-4 py-2 text-right">
                     <div className="flex flex-col sm:flex-row items-center justify-end gap-1 sm:gap-2">
-                      <Link
-                        to={`/database/edit/${item.id}`}
-                        className="inline-flex items-center rounded-md bg-blue-500 px-3 py-1.5 text-white text-xs font-medium hover:bg-blue-600 w-full sm:w-auto justify-center"
-                      >
-                        Edit
-                      </Link>
-                      <button 
-                        onClick={() => remove(item.id)}
-                        className="inline-flex items-center rounded-md bg-rose-500 px-3 py-1.5 text-white text-xs font-medium hover:bg-rose-600 w-full sm:w-auto justify-center"
-                      >
-                        Hapus
-                      </button>
+                      {authUtils.hasPermission('edit') && (
+                        <Link
+                          to={`/database/edit/${item.id}`}
+                          className="inline-flex items-center rounded-md bg-blue-500 px-3 py-1.5 text-white text-xs font-medium hover:bg-blue-600 w-full sm:w-auto justify-center"
+                        >
+                          Edit
+                        </Link>
+                      )}
+                      {authUtils.hasPermission('delete') && (
+                        <button 
+                          onClick={() => remove(item.id)}
+                          className="inline-flex items-center rounded-md bg-rose-500 px-3 py-1.5 text-white text-xs font-medium hover:bg-rose-600 w-full sm:w-auto justify-center"
+                        >
+                          Hapus
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

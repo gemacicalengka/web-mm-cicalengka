@@ -2,6 +2,7 @@ import type { Route } from "./+types/database.edit.$id";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { supabase } from "../../supabase_connection";
+import { authUtils } from "../../utils/auth";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -23,6 +24,14 @@ export default function DatabaseEdit() {
   const navigate = useNavigate();
   const { id } = useParams();
   const [currentItem, setCurrentItem] = useState<DatabaseItem | null>(null);
+  
+  // Check permission - redirect if user doesn't have edit permission
+  useEffect(() => {
+    if (!authUtils.hasPermission('edit')) {
+      navigate("/database");
+      return;
+    }
+  }, [navigate]);
   
   // Form state
   const [nama, setNama] = useState("");

@@ -172,6 +172,7 @@ export default function App() {
             <SidebarLink to="/absensi" label="Absensi" open={sidebarOpen} icon={CheckIcon} />
             <SidebarLink to="/database" label="Database" open={sidebarOpen} icon={DatabaseIcon} />
             <SidebarLink to="/laporan" label="Laporan" open={sidebarOpen} icon={ReportIcon} />
+            <SidebarLink to="/informasi" label="Informasi" open={sidebarOpen} icon={InfoIcon} />
           </nav>
         </div>
       </aside>
@@ -234,6 +235,7 @@ export default function App() {
               <MobileNavLink to="/absensi" label="Absensi" icon={CheckIcon} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink to="/database" label="Database" icon={DatabaseIcon} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink to="/laporan" label="Laporan" icon={ReportIcon} onClick={() => setMobileMenuOpen(false)} />
+              <MobileNavLink to="/informasi" label="Informasi" icon={InfoIcon} onClick={() => setMobileMenuOpen(false)} />
             </nav>
           </div>
         )}
@@ -378,6 +380,17 @@ function LogoutIcon({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className={className}>
       <path strokeWidth="1.5" d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
+    </svg>
+  );
+}
+function InfoIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className={className}>
+      <path strokeWidth="1.5" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline strokeWidth="1.5" points="14,2 14,8 20,8"/>
+      <line strokeWidth="1.5" x1="16" y1="13" x2="8" y2="13"/>
+      <line strokeWidth="1.5" x1="16" y1="17" x2="8" y2="17"/>
+      <polyline strokeWidth="1.5" points="10,9 9,9 8,9"/>
     </svg>
   );
 }

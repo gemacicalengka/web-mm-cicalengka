@@ -1,6 +1,7 @@
 export interface UserData {
   username: string;
   loginTime: number;
+  role: 'admin' | 'limited';
 }
 
 export const AUTH_CONFIG = {
@@ -58,7 +59,7 @@ export const authUtils = {
   },
 
   // Login user and store session data
-  login(username: string): void {
+  login(username: string, role: 'admin' | 'limited' = 'admin'): void {
     // Check if we're in a browser environment
     if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
       return;
@@ -66,7 +67,8 @@ export const authUtils = {
     
     const userData: UserData = {
       username,
-      loginTime: new Date().getTime()
+      loginTime: new Date().getTime(),
+      role
     };
 
     localStorage.setItem(AUTH_CONFIG.STORAGE_KEYS.USER_DATA, JSON.stringify(userData));
@@ -109,5 +111,30 @@ export const authUtils = {
     const remaining = this.getRemainingSessionTime();
     const fiveMinutes = 5 * 60 * 1000;
     return remaining > 0 && remaining <= fiveMinutes;
+  },
+
+  // Check if current user has admin role
+  isAdmin(): boolean {
+    const user = this.getCurrentUser();
+    return user?.role === 'admin';
+  },
+
+  // Check if current user has limited role
+  isLimited(): boolean {
+    const user = this.getCurrentUser();
+    return user?.role === 'limited';
+  },
+
+  // Check if user has permission for specific action
+  hasPermission(action: 'add' | 'edit' | 'delete' | 'edit_attendance'): boolean {
+    const user = this.getCurrentUser();
+    if (!user) return false;
+    
+    if (user.role === 'admin') return true;
+    
+    // Limited user can only edit attendance status
+    if (user.role === 'limited' && action === 'edit_attendance') return true;
+    
+    return false;
   }
 };

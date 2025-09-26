@@ -2,6 +2,7 @@ import type { Route } from "./+types/kegiatan";
 import { useEffect, useMemo, useState } from "react";
 import type { JSX } from "react";
 import { supabase } from "../supabase_connection";
+import { authUtils } from "../utils/auth";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -327,8 +328,12 @@ export default function Kegiatan() {
                       <td className="px-4 py-2 text-gray-700">{item.tempat}</td>
                       <td className="px-4 py-2 text-right">
                         <div className="flex flex-col sm:flex-row items-center justify-end gap-1 sm:gap-2">
-                          <button onClick={() => startEdit(item)} className="inline-flex items-center rounded-md bg-blue-500 px-3 py-1.5 text-white text-xs font-medium hover:bg-blue-600 w-full sm:w-auto justify-center">Edit</button>
-                          <button onClick={() => deleteItem(item.id)} className="inline-flex items-center rounded-md bg-rose-500 px-3 py-1.5 text-white text-xs font-medium hover:bg-rose-600 w-full sm:w-auto justify-center">Hapus</button>
+                          {authUtils.hasPermission('edit') && (
+                            <button onClick={() => startEdit(item)} className="inline-flex items-center rounded-md bg-blue-500 px-3 py-1.5 text-white text-xs font-medium hover:bg-blue-600 w-full sm:w-auto justify-center">Edit</button>
+                          )}
+                          {authUtils.hasPermission('delete') && (
+                            <button onClick={() => deleteItem(item.id)} className="inline-flex items-center rounded-md bg-rose-500 px-3 py-1.5 text-white text-xs font-medium hover:bg-rose-600 w-full sm:w-auto justify-center">Hapus</button>
+                          )}
                         </div>
                       </td>
                     </>
@@ -370,17 +375,19 @@ export default function Kegiatan() {
       </div>
 
         {/* Toggle add form */}
-        <div className="flex justify-center sm:justify-start">
-          <button
-            type="button"
-            onClick={() => setShowForm((v) => !v)}
-            className="inline-flex items-center gap-2 rounded-md bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600 mt-2 mb-2 w-full sm:w-auto justify-center"
-          >
-            {showForm ? "Tutup Form" : "Tambah Kegiatan"}
-          </button>
-        </div>
+        {authUtils.hasPermission('add') && (
+          <div className="flex justify-center sm:justify-start">
+            <button
+              type="button"
+              onClick={() => setShowForm((v) => !v)}
+              className="inline-flex items-center gap-2 rounded-md bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600 mt-2 mb-2 w-full sm:w-auto justify-center"
+            >
+              {showForm ? "Tutup Form" : "Tambah Kegiatan"}
+            </button>
+          </div>
+        )}
 
-        {showForm && (
+        {showForm && authUtils.hasPermission('add') && (
           <form onSubmit={onAdd} className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>

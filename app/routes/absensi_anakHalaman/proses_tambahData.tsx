@@ -2,6 +2,7 @@ import type { Route } from "./+types/proses_tambahData";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { supabase } from "../../supabase_connection";
+import { authUtils } from "../../utils/auth";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -23,6 +24,14 @@ export default function ProsesTambahData() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const kegiatanId = searchParams.get('kegiatan_id');
+  
+  // Check permission - redirect if user doesn't have add permission
+  useEffect(() => {
+    if (!authUtils.hasPermission('add')) {
+      navigate(kegiatanId ? `/absensi/edit/${kegiatanId}` : "/absensi");
+      return;
+    }
+  }, [navigate, kegiatanId]);
   
   // Form state
   const [nama, setNama] = useState("");

@@ -43,7 +43,8 @@ export function meta({}: Route.MetaArgs) {
 
 export default function Dashboard() {
   const [items, setItems] = useState<DatabaseItem[]>([]);
-  const [latestKegiatan, setLatestKegiatan] = useState<KegiatanItem | null>(null);
+  const [allKegiatan, setAllKegiatan] = useState<KegiatanItem[]>([]);
+  const [selectedKegiatan, setSelectedKegiatan] = useState<KegiatanItem | null>(null);
   const [attendanceStats, setAttendanceStats] = useState<AttendanceStats[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -62,53 +63,18 @@ export default function Dashboard() {
         
         setItems(data || []);
 
-        // Fetch latest kegiatan
-        const { data: kegiatanData, error: kegiatanError } = await supabase
+        // Fetch all kegiatan for dropdown
+        const { data: allKegiatanData, error: allKegiatanError } = await supabase
           .from('kegiatan')
           .select('*')
-          .order('tgl_giat', { ascending: false })
-          .limit(1);
+          .order('tgl_giat', { ascending: false });
         
-        if (kegiatanError) {
-          console.error('Error fetching kegiatan:', kegiatanError);
-        } else if (kegiatanData && kegiatanData.length > 0) {
-          setLatestKegiatan(kegiatanData[0]);
-          
-          // Fetch attendance data for latest kegiatan
-          const { data: attendanceData, error: attendanceError } = await supabase
-            .from('absensi')
-            .select('*')
-            .eq('kegiatan_id', kegiatanData[0].id);
-          
-          if (attendanceError) {
-            console.error('Error fetching attendance:', attendanceError);
-          } else {
-            // Calculate attendance statistics by kelompok
-            const kelompokList = ['Linggar', 'Parakan Muncang', 'Cikopo', 'Bojong Koneng', 'Cikancung 1', 'Cikancung 2'];
-            const stats: AttendanceStats[] = [];
-            
-            kelompokList.forEach(kelompok => {
-              const kelompokMembers = (data || []).filter(member => member.kelompok === kelompok);
-              const kelompokAttendance = (attendanceData || []).filter(att => {
-                const member = kelompokMembers.find(m => m.id === att.generus_id);
-                return member !== undefined;
-              });
-              
-              const hadir = kelompokAttendance.filter(att => att.status_kehadiran === 'Hadir').length;
-              const izin = kelompokAttendance.filter(att => att.status_kehadiran === 'Izin').length;
-              const belum = kelompokMembers.length - kelompokAttendance.length + kelompokAttendance.filter(att => att.status_kehadiran === 'Belum').length;
-              
-              stats.push({
-                kelompok,
-                hadir,
-                total: kelompokMembers.length,
-                izin,
-                belum
-              });
-            });
-            
-            setAttendanceStats(stats);
-          }
+        if (allKegiatanError) {
+          console.error('Error fetching all kegiatan:', allKegiatanError);
+        } else if (allKegiatanData && allKegiatanData.length > 0) {
+          setAllKegiatan(allKegiatanData);
+          // Set the latest kegiatan as default selected
+          setSelectedKegiatan(allKegiatanData[0]);
         }
       } catch (error) {
         console.error('Error:', error);
@@ -119,6 +85,61 @@ export default function Dashboard() {
 
     fetchData();
   }, []);
+
+  // Fetch attendance data when selected kegiatan changes
+  useEffect(() => {
+    async function fetchAttendanceData() {
+      if (!selectedKegiatan || !items.length) return;
+
+      try {
+        // Fetch attendance data for selected kegiatan
+        const { data: attendanceData, error: attendanceError } = await supabase
+          .from('absensi')
+          .select('*')
+          .eq('kegiatan_id', selectedKegiatan.id);
+        
+        if (attendanceError) {
+          console.error('Error fetching attendance:', attendanceError);
+        } else {
+          // Calculate attendance statistics by kelompok
+          const kelompokList = ['Linggar', 'Parakan Muncang', 'Cikopo', 'Bojong Koneng', 'Cikancung 1', 'Cikancung 2'];
+          const stats: AttendanceStats[] = [];
+          
+          kelompokList.forEach(kelompok => {
+            const kelompokMembers = items.filter(member => member.kelompok === kelompok);
+            const kelompokAttendance = (attendanceData || []).filter(att => {
+              const member = kelompokMembers.find(m => m.id === att.generus_id);
+              return member !== undefined;
+            });
+            
+            const hadir = kelompokAttendance.filter(att => att.status_kehadiran === 'Hadir').length;
+            const izin = kelompokAttendance.filter(att => att.status_kehadiran === 'Izin').length;
+            const belum = kelompokMembers.length - kelompokAttendance.length + kelompokAttendance.filter(att => att.status_kehadiran === 'Belum').length;
+            
+            stats.push({
+              kelompok,
+              hadir,
+              total: kelompokMembers.length,
+              izin,
+              belum
+            });
+          });
+          
+          setAttendanceStats(stats);
+        }
+      } catch (error) {
+        console.error('Error fetching attendance data:', error);
+      }
+    }
+
+    fetchAttendanceData();
+  }, [selectedKegiatan, items]);
+
+  const handleKegiatanChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedId = parseInt(event.target.value);
+    const kegiatan = allKegiatan.find(k => k.id === selectedId);
+    setSelectedKegiatan(kegiatan || null);
+  };
 
   // Calculate statistics
   const totalMudaMudi = items.length;
@@ -136,7 +157,7 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <section className="space-y-4 text-justify">
+      <section className="space-y-4 text-justify fade-in">
         <h2 className="text-2xl font-bold text-gray-900 inline-block border-b-2 border-sky-400 pb-1">Dashboard</h2>
         <div className="text-center py-8">Loading...</div>
       </section>
@@ -161,15 +182,36 @@ export default function Dashboard() {
       <h2 className="text-2xl font-bold text-gray-900 inline-block border-b-2 border-sky-400 pb-1">Rekap Kehadiran</h2>
       
       <div className="rounded-xl border border-gray-200 bg-white p-6">
-        {latestKegiatan ? (
+        {selectedKegiatan ? (
           <>
-            <h3 className="text-lg font-semibold text-gray-900 mb-6 text-center">
-              {latestKegiatan.nama_giat}
-            </h3>
+            {/* Activity Selection Dropdown */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {selectedKegiatan.nama_giat}
+              </h3>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <label htmlFor="kegiatan-select" className="text-sm font-medium text-gray-900 whitespace-nowrap">
+                  Pilih Kegiatan:
+                </label>
+                <select
+                  id="kegiatan-select"
+                  value={selectedKegiatan.id}
+                  onChange={handleKegiatanChange}
+                  className="px-20 py-2 border text-gray-900 border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-white w-full sm:min-w-[200px] text-left"
+                  style={{ maxHeight: '200px', overflowY: 'auto' }}
+                >
+                  {allKegiatan.map((kegiatan) => (
+                    <option key={kegiatan.id} value={kegiatan.id}>
+                      {kegiatan.nama_giat} - {new Date(kegiatan.tgl_giat).toLocaleDateString('id-ID')}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
             
             {/* Bar Chart */}
-            <div className="mb-8 overflow-x-auto">
-              <div className="relative h-80 flex items-end justify-center gap-4 sm:gap-8 lg:gap-16 border-l-2 border-b-2 border-gray-300 ml-8 mr-4 px-4 sm:px-8 lg:px-12 min-w-max">
+            <div className="mb-8 fade-in-stagger overflow-x-auto">
+              <div className="relative h-80 flex items-end justify-center gap-1 sm:gap-2 md:gap-4 lg:gap-6 border-l-2 border-b-2 border-gray-300 ml-8 mr-4 px-1 sm:px-2 md:px-4 lg:px-6 min-w-[600px]">
                 {/* Horizontal grid lines */}
                 <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
                   <div className="border-t border-gray-200 w-full"></div>
@@ -213,9 +255,9 @@ export default function Dashboard() {
               </div>
               
               {/* Container for Group Names and Attendance Info */}
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 mt-2">
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 mt-2 overflow-x-auto">
                 {/* Invisible alignment structure to match main chart */}
-                <div className="relative flex items-end justify-center gap-16 ml-8 mr-4 px-12">
+                <div className="relative flex items-end justify-center gap-1 sm:gap-2 md:gap-4 lg:gap-6 ml-8 mr-4 px-1 sm:px-2 md:px-4 lg:px-6 min-w-[600px]">
                   {attendanceStats.map((stat, index) => (
                     <div key={index} className="flex flex-col items-center relative">
                       {/* Invisible bar for alignment - same width as main chart bars */}
@@ -240,7 +282,7 @@ export default function Dashboard() {
             </div>
             
             {/* Statistics Section */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 fade-in-stagger">
               <StatCard title="Jumlah Hadir" value={totalHadir.toString()} icon={CheckIcon} />
               <StatCard title="Jumlah Izin" value={totalIzin.toString()} icon={ClockIcon} />
               <StatCard title="Jumlah Belum" value={totalBelum.toString()} icon={XIcon} />

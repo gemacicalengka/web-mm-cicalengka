@@ -2,6 +2,7 @@ import type { Route } from "./+types/absensi.edit.$id";
 import { useState, useEffect, useMemo } from "react";
 import { Link, useParams } from "react-router";
 import { supabase } from "../../supabase_connection";
+import { authUtils } from "../../utils/auth";
 
 interface KegiatanItem {
   id: number;
@@ -341,12 +342,14 @@ export default function AbsensiEdit() {
               />
             </div>
           </div>
-          <Link
-            to={`/proses_tambahData?kegiatan_id=${kegiatan?.id}`}
-            className="inline-flex items-center rounded-md bg-green-500 px-4 py-2 text-white text-sm font-medium hover:bg-green-600 w-full sm:w-auto justify-center"
-          >
-            Tambah Data
-          </Link>
+          {authUtils.hasPermission('add') && (
+            <Link
+              to={`/proses_tambahData?kegiatan_id=${kegiatan?.id}`}
+              className="inline-flex items-center rounded-md bg-green-500 px-4 py-2 text-white text-sm font-medium hover:bg-green-600 w-full sm:w-auto justify-center"
+            >
+              Tambah Data
+            </Link>
+          )}
         </div>
 
         <div className="overflow-x-auto">
@@ -396,18 +399,22 @@ export default function AbsensiEdit() {
                           </svg>
                         </div>
                       </div>
-                      <Link
-                        to={`/proses_editData/${item.generus_id}?kegiatan_id=${kegiatan?.id}`}
-                        className="inline-flex items-center rounded-md bg-blue-500 px-3 py-1.5 text-white text-xs font-medium hover:bg-blue-600 w-full sm:w-auto justify-center"
-                      >
-                        Edit
-                      </Link>
-                      <button 
-                        onClick={() => deleteAttendance(item.generus_id)}
-                        className="inline-flex items-center rounded-md bg-rose-500 px-3 py-1.5 text-white text-xs font-medium hover:bg-rose-600 w-full sm:w-auto justify-center"
-                      >
-                        Hapus
-                      </button>
+                      {authUtils.hasPermission('edit') && (
+                        <Link
+                          to={`/proses_editData/${item.generus_id}?kegiatan_id=${kegiatan?.id}`}
+                          className="inline-flex items-center rounded-md bg-blue-500 px-3 py-1.5 text-white text-xs font-medium hover:bg-blue-600 w-full sm:w-auto justify-center"
+                        >
+                          Edit
+                        </Link>
+                      )}
+                      {authUtils.hasPermission('delete') && (
+                        <button 
+                          onClick={() => deleteAttendance(item.generus_id)}
+                          className="inline-flex items-center rounded-md bg-rose-500 px-3 py-1.5 text-white text-xs font-medium hover:bg-rose-600 w-full sm:w-auto justify-center"
+                        >
+                          Hapus
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
