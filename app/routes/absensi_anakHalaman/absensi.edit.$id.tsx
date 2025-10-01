@@ -386,8 +386,8 @@ export default function AbsensiEdit() {
                           onChange={(e) => updateAttendanceStatus(item.generus_id, e.target.value as 'Belum' | 'Hadir' | 'Izin')}
                           className="inline-flex items-center rounded-md bg-white border border-gray-300 px-3 py-1.5 text-xs font-medium hover:bg-gray-50 cursor-pointer appearance-none pr-8 min-w-[80px] text-transparent w-full sm:w-auto"
                         >
-                          <option value="Hadir" className="text-black">✓ Hadir</option>
-                          <option value="Belum" className="text-black">✗ Belum</option>
+                          <option value="Hadir" className="text-black">✅ Hadir</option>
+                          <option value="Belum" className="text-black">❌ Belum</option>
                           <option value="Izin" className="text-black">✋ Izin</option>
                         </select>
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">

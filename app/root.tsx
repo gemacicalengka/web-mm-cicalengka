@@ -249,7 +249,7 @@ export default function App() {
 
         {/* Footer */}
         <footer className="h-12 bg-sky-400 flex items-center justify-center text-xs text-white">
-          © {new Date().getFullYear()} MM Cicalengka. All rights reserved.
+          © {new Date().getFullYear()} GEMA Cicalengka. All rights reserved.
         </footer>
       </div>
       </div>
