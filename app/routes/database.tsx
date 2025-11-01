@@ -203,7 +203,7 @@ export default function Database() {
           </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-          <button className="text-blue-600 hover:text-blue-800 text-sm font-medium px-3 py-2 rounded-md border border-blue-200 hover:bg-blue-50 w-full sm:w-auto text-center">Import Data</button>
+          {/* <button className="text-blue-600 hover:text-blue-800 text-sm font-medium px-3 py-2 rounded-md border border-blue-200 hover:bg-blue-50 w-full sm:w-auto text-center">Import Data</button> */}
           <button 
             onClick={exportToExcel}
             className="text-blue-600 hover:text-blue-800 text-sm font-medium px-3 py-2 rounded-md border border-blue-200 hover:bg-blue-50 w-full sm:w-auto text-center"

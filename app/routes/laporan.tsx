@@ -205,23 +205,60 @@ export default function Laporan() {
       doc.text(`Jumlah Hadir: ${stats.totalHadir}`, 20, yPos);
       doc.text(`Jumlah Izin: ${stats.totalIzin}`, 20, yPos + 7);
       doc.text(`Jumlah Belum: ${stats.totalBelum}`, 20, yPos + 14);
-      doc.text(`Persentase Kehadiran: ${stats.persentase.toFixed(1)}%`, 20, yPos + 21);
+      doc.text(`Persentase Kehadiran: ${Number(stats.persentase).toFixed(1)}%`, 20, yPos + 21);
 
-      yPos += 35;
+      yPos += 30;
 
       // Group statistics (if "Semua" is selected)
       if (selectedKelompok === "Semua") {
         doc.text('Kehadiran per Kelompok:', 20, yPos);
-        yPos += 10;
+        yPos += 5;
+
+        const groupTableData: string[][] = [];
+        const kelompokOrder = ["Linggar", "Parakan Muncang", "Cikopo", "Bojong Koneng", "Cikancung 1", "Cikancung 2"];
         
-        kelompokOrder.forEach(kelompok => {
-          const kelompokStats = stats.kelompokStats[kelompok];
-          if (kelompokStats) {
-            doc.text(`${kelompok}: ${kelompokStats.hadir}/${kelompokStats.total} (${kelompokStats.persentase.toFixed(1)}%)`, 25, yPos);
-            yPos += 7;
+        // Prepare data for 3x2 table
+        for (let i = 0; i < kelompokOrder.length; i += 3) {
+          const rowData: string[] = [];
+          for (let j = 0; j < 3; j++) {
+            const kelompok = kelompokOrder[i + j];
+            if (kelompok) {
+              const kelompokStats = stats.kelompokStats[kelompok];
+              if (kelompokStats) {
+                // Ensure percentage is formatted to one decimal place as per user request.
+                const percentage = kelompokStats.total > 0 ? ((kelompokStats.hadir / (kelompokStats.total - kelompokStats.izin)) * 100).toFixed(1) : '0.0';
+                rowData.push(
+                  `${kelompok} (${percentage}% dari ${kelompokStats.total})\nHadir: ${kelompokStats.hadir}\nIzin: ${kelompokStats.izin}\nTanpa Keterangan: ${kelompokStats.belum}`
+                );
+              } else {
+                rowData.push(''); // Empty cell if no stats for group
+              }
+            } else {
+              rowData.push(''); // Empty cell if no group for this position
+            }
+          }
+          groupTableData.push(rowData);
+        }
+
+        autoTable(doc, {
+          startY: yPos,
+          body: groupTableData,
+          theme: 'plain',
+          styles: { fontSize: 10, cellPadding: 3, lineColor: 200, lineWidth: 0.1 },
+          margin: { left: 20, right: 20 },
+          tableWidth: 'auto',
+          // didParseCell: function (data) {
+          //   if (data.cell.text[0].includes('%')) {
+          //     data.cell.styles.fontStyle = 'bold';
+          //   }
+          // },
+          didDrawCell: function (data) {
+            if (data.cell.text[0] !== '') {
+              doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'S');
+            }
           }
         });
-        yPos += 10;
+        yPos = (doc as any).lastAutoTable.finalY + 10;
       }
 
       // Table data
@@ -253,6 +290,18 @@ export default function Laporan() {
           1: { cellWidth: 'auto' },
           2: { cellWidth: 'auto' },
           3: { cellWidth: 'auto' }
+        },
+        didParseCell: function (data) {
+          if (data.section === 'body' && data.column.index === 3) { // 'Status Hadir' column
+            const status = data.cell.text[0];
+            if (status === 'Hadir') {
+              data.cell.styles.textColor = [40, 167, 69]; // Green (#28a745)
+            } else if (status === 'Izin') {
+              data.cell.styles.textColor = [255, 193, 7]; // Yellow (#ffc107)
+            } else if (status === 'Belum') {
+              data.cell.styles.textColor = [220, 53, 69]; // Red (#dc3545)
+            }
+          }
         }
       });
 
@@ -302,7 +351,8 @@ export default function Laporan() {
         total: kelompokMembers.length,
         izin,
         belum,
-        persentase: (kelompokMembers.length - izin) > 0 ? (hadir / (kelompokMembers.length - izin)) * 100 : 0
+        // Ensure percentage is formatted to one decimal place as per user request.
+        persentase: (kelompokMembers.length - izin) > 0 ? Number(((hadir / (kelompokMembers.length - izin)) * 100).toFixed(1)) : 0
       };
 
       // Add to totals
@@ -312,7 +362,7 @@ export default function Laporan() {
     });
 
     // Calculate overall percentage (same as dashboard: exclude izin from denominator)
-    const persentase = (totalGenerus - totalIzin) > 0 ? (totalHadir / (totalGenerus - totalIzin)) * 100 : 0;
+    const persentase = (totalGenerus - totalIzin) > 0 ? ((totalHadir / (totalGenerus - totalIzin)) * 100).toFixed(1) : '0.0';
 
     return {
       totalHadir,

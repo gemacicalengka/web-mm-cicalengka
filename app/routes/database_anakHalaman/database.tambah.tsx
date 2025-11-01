@@ -122,7 +122,7 @@ export default function DatabaseTambah() {
               Jenis Kelamin <span className="text-red-500">*</span>
             </label>
             <div className="flex gap-4">
-              <label className="flex items-center">
+              <label className="flex items-center text-black">
                 <input
                   type="radio"
                   name="jenisKelamin"
@@ -133,7 +133,7 @@ export default function DatabaseTambah() {
                 />
                 L
               </label>
-              <label className="flex items-center">
+              <label className="flex items-center text-black">
                 <input
                   type="radio"
                   name="jenisKelamin"

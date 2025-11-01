@@ -34,6 +34,17 @@ interface AttendanceStats {
   belum: number;
 }
 
+interface ClassificationStats {
+  total: number;
+  lakiLaki: number;
+  perempuan: number;
+}
+
+interface UsiaStats {
+  usia17Plus: ClassificationStats;
+  usia20Plus: ClassificationStats;
+}
+
 export function meta({}: Route.MetaArgs) {
   return [
     { title: "Dashboard" },
@@ -46,7 +57,27 @@ export default function Dashboard() {
   const [allKegiatan, setAllKegiatan] = useState<KegiatanItem[]>([]);
   const [selectedKegiatan, setSelectedKegiatan] = useState<KegiatanItem | null>(null);
   const [attendanceStats, setAttendanceStats] = useState<AttendanceStats[]>([]);
+  const [classificationStats, setClassificationStats] = useState<{ praNikah: ClassificationStats; remaja: ClassificationStats; usia: UsiaStats } | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Helper function to calculate age from birth date
+  const calculateAge = (dob: string) => {
+    const birthDate = new Date(dob);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  // Helper function to get gender breakdown
+  const getGenderBreakdown = (data: DatabaseItem[]) => {
+    const lakiLaki = data.filter(item => item.jenis_kelamin === 'L').length;
+    const perempuan = data.filter(item => item.jenis_kelamin === 'P').length;
+    return { lakiLaki, perempuan };
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -62,6 +93,28 @@ export default function Dashboard() {
         }
         
         setItems(data || []);
+
+        // Calculate classification stats
+        const praNikahData = (data || []).filter(item => item.status !== 'Pelajar');
+        const remajaData = (data || []).filter(item => item.status === 'Pelajar');
+
+        const { lakiLaki: praNikahL, perempuan: praNikahP } = getGenderBreakdown(praNikahData);
+        const { lakiLaki: remajaL, perempuan: remajaP } = getGenderBreakdown(remajaData);
+
+        const usia17PlusData = (data || []).filter(item => calculateAge(item.tgl_lahir) >= 17);
+        const usia20PlusData = (data || []).filter(item => calculateAge(item.tgl_lahir) >= 20);
+
+        const { lakiLaki: usia17L, perempuan: usia17P } = getGenderBreakdown(usia17PlusData);
+        const { lakiLaki: usia20L, perempuan: usia20P } = getGenderBreakdown(usia20PlusData);
+
+        setClassificationStats({
+          praNikah: { total: praNikahData.length, lakiLaki: praNikahL, perempuan: praNikahP },
+          remaja: { total: remajaData.length, lakiLaki: remajaL, perempuan: remajaP },
+          usia: {
+            usia17Plus: { total: usia17PlusData.length, lakiLaki: usia17L, perempuan: usia17P },
+            usia20Plus: { total: usia20PlusData.length, lakiLaki: usia20L, perempuan: usia20P },
+          },
+        });
 
         // Fetch all kegiatan for dropdown
         const { data: allKegiatanData, error: allKegiatanError } = await supabase
@@ -177,9 +230,62 @@ export default function Dashboard() {
       
       {/* Separator Line */}
       <div className="border-t border-gray-200"></div>
+
+      {/* Classification Section */}
+      <h2 className="text-2xl font-bold text-gray-900 inline-block border-b-2 border-sky-400 pb-1">Klasifikasi Jumlah MM</h2>
+
+      {classificationStats && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 fade-in-stagger">
+          {/* Card 1: Status Pra-Nikah */}
+          <div className="rounded-xl border border-sky-200 bg-white p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <HeartIcon className="h-6 w-6 text-sky-500" />
+              <div className="text-lg font-medium text-gray-900">Status Pra-Nikah</div>
+            </div>
+            <div className="text-3xl font-semibold text-sky-600 mb-2">{classificationStats.praNikah.total}</div>
+            <div className="text-sm text-gray-700">
+              <p>Laki-laki: {classificationStats.praNikah.lakiLaki}</p>
+              <p>Perempuan: {classificationStats.praNikah.perempuan}</p>
+            </div>
+          </div>
+
+          {/* Card 2: Status Remaja */}
+          <div className="rounded-xl border border-sky-200 bg-white p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <StudentIcon className="h-6 w-6 text-sky-500" />
+              <div className="text-lg font-medium text-gray-900">Status Remaja</div>
+            </div>
+            <div className="text-3xl font-semibold text-sky-600 mb-2">{classificationStats.remaja.total}</div>
+            <div className="text-sm text-gray-700">
+              <p>Laki-laki: {classificationStats.remaja.lakiLaki}</p>
+              <p>Perempuan: {classificationStats.remaja.perempuan}</p>
+            </div>
+          </div>
+
+          {/* Card 3: Klasifikasi Usia */}
+          <div className="rounded-xl border border-sky-200 bg-white p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <ChartIcon className="h-6 w-6 text-sky-500" />
+              <div className="text-lg font-medium text-gray-900">Klasifikasi Usia</div>
+            </div>
+            <div className="space-y-2">
+              <div>
+                <h4 className="font-semibold text-gray-800">Usia &gt;= 17 tahun:</h4>
+                <p className="text-xl font-semibold text-sky-600">Total: {classificationStats.usia.usia17Plus.total}</p>
+                <p className="text-sm text-gray-700">Laki-laki: {classificationStats.usia.usia17Plus.lakiLaki}, Perempuan: {classificationStats.usia.usia17Plus.perempuan}</p>
+              </div>
+              <div>
+                <h4 className="font-semibold text-gray-800">Usia &gt;= 20 tahun:</h4>
+                <p className="text-xl font-semibold text-sky-600">Total: {classificationStats.usia.usia20Plus.total}</p>
+                <p className="text-sm text-gray-700">Laki-laki: {classificationStats.usia.usia20Plus.lakiLaki}, Perempuan: {classificationStats.usia.usia20Plus.perempuan}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Attendance Recap Section */}
-      <h2 className="text-2xl font-bold text-gray-900 inline-block border-b-2 border-sky-400 pb-1">Rekap Kehadiran</h2>
+      <h2 className="text-2xl font-bold text-gray-900 inline-block border-b-2 border-sky-400 pb-1">Rekap Kehadiran - Kegiatan Terakhir Desa</h2>
       
       <div className="rounded-xl border border-gray-200 bg-white p-6">
         {selectedKegiatan ? (
