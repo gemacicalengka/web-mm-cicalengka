@@ -29,6 +29,20 @@ export default function Database() {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 10;
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportAllData, setExportAllData] = useState(true);
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+  const [selectAllStatuses, setSelectAllStatuses] = useState(true);
+  const [ageCategory, setAgeCategory] = useState<'Remaja' | 'Pra-Nikah' | 'Keduanya'>('Keduanya');
+  const [selectedKelompok, setSelectedKelompok] = useState<string>('Semua Kelompok');
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'xlsx' | 'csv'>('xlsx');
+
+  const uniqueStatuses = useMemo(() => {
+    const statuses = new Set<string>();
+    items.forEach(item => statuses.add(item.status));
+    return Array.from(statuses);
+  }, [items]);
 
   // Load data from Supabase
   useEffect(() => {
@@ -45,7 +59,7 @@ export default function Database() {
           // Show more detailed error message
           if (error.code === '42501') {
             alert('Error: Row Level Security policy violation. Please check your Supabase RLS settings for the data_generus table.');
-          } else if (error.code === 'PGRST116') {
+                           } else if (error.code === 'PGRST116') {
             alert('Error: Table "data_generus" not found. Please check if the table exists in your Supabase database.');
           } else {
             alert('Error fetching data: ' + error.message);
@@ -90,10 +104,56 @@ export default function Database() {
   const endIdx = Math.min(startIdx + pageSize, filteredAndSorted.length);
   const paged = useMemo(() => filteredAndSorted.slice(startIdx, endIdx), [filteredAndSorted, startIdx, endIdx]);
 
+  const filteredDataForExport = useMemo(() => {
+    if (exportAllData) {
+      return items;
+    }
+
+    let filtered = items;
+
+    // Filter by status
+    if (!selectAllStatuses && selectedStatuses.length > 0) {
+      filtered = filtered.filter(item => selectedStatuses.includes(item.status));
+    }
+
+    // Filter by age category
+    if (ageCategory !== 'Keduanya') {
+      filtered = filtered.filter(item => {
+        const age = new Date().getFullYear() - new Date(item.tgl_lahir).getFullYear();
+        if (ageCategory === 'Remaja') {
+          return age >= 13 && age <= 18;
+        } else if (ageCategory === 'Pra-Nikah') {
+          return age > 18;
+        }
+        return true; // Should not reach here if ageCategory is not 'Keduanya'
+      });
+    }
+
+    // Filter by kelompok
+    if (selectedKelompok !== 'Semua Kelompok') {
+      filtered = filtered.filter(item => item.kelompok === selectedKelompok);
+    }
+
+    return filtered;
+  }, [items, exportAllData, selectedStatuses, ageCategory]);
+
   // Reset page when search changes
   useEffect(() => {
     setPage(1);
   }, [query]);
+
+  // Handle ESC key to close modal
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowExportModal(false);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, []);
 
   async function remove(id: number) {
     if (!confirm("Apakah Anda yakin ingin menghapus data ini?")) return;
@@ -140,9 +200,63 @@ export default function Database() {
     }
   }
 
-  function exportToExcel() {
+  function handleExport() {
+    setExportLoading(true);
     try {
-      // Use filtered data for export
+      const dataToExport = filteredDataForExport.map((item, index) => ({
+        'No': index + 1,
+        'Nama': item.nama,
+        'Jenis Kelamin': item.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan',
+        'Kelompok': item.kelompok,
+        'Tanggal Lahir': formatDate(item.tgl_lahir),
+        'Status': item.status
+      }));
+
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      let filename = `data_generus_${dateStr}`;
+
+      if (exportFormat === 'xlsx') {
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(dataToExport);
+
+        const colWidths = [
+          { wch: 5 },  // No
+          { wch: 25 }, // Nama
+          { wch: 15 }, // Jenis Kelamin
+          { wch: 20 }, // Kelompok
+          { wch: 15 }, // Tanggal Lahir
+          { wch: 20 }  // Status
+        ];
+        ws['!cols'] = colWidths;
+
+        XLSX.utils.book_append_sheet(wb, ws, 'Data Generus');
+        filename += '.xlsx';
+        XLSX.writeFile(wb, filename);
+      } else if (exportFormat === 'csv') {
+        const csv = XLSX.utils.sheet_to_csv(XLSX.utils.json_to_sheet(dataToExport));
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        filename += '.csv';
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+      
+      alert(`Data berhasil diekspor ke file ${filename}`);
+      setShowExportModal(false);
+    } catch (error) {
+      console.error('Error exporting data:', error);
+      alert('Terjadi kesalahan saat mengekspor data');
+    } finally {
+      setExportLoading(false);
+    }
+  }
+
+  function exportCurrentDataToExcel() {
+    try {
       const dataToExport = filteredAndSorted.map((item, index) => ({
         'No': index + 1,
         'Nama': item.nama,
@@ -152,11 +266,9 @@ export default function Database() {
         'Status': item.status
       }));
 
-      // Create workbook and worksheet
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.json_to_sheet(dataToExport);
 
-      // Set column widths
       const colWidths = [
         { wch: 5 },  // No
         { wch: 25 }, // Nama
@@ -167,26 +279,24 @@ export default function Database() {
       ];
       ws['!cols'] = colWidths;
 
-      // Add worksheet to workbook
       XLSX.utils.book_append_sheet(wb, ws, 'Data Generus');
 
-      // Generate filename with current date
       const now = new Date();
       const dateStr = now.toISOString().split('T')[0];
-      const filename = `data_generus_${dateStr}.xlsx`;
+      const filename = `data_generus_current_${dateStr}.xlsx`;
 
-      // Save file
       XLSX.writeFile(wb, filename);
       
       alert(`Data berhasil diekspor ke file ${filename}`);
     } catch (error) {
-      console.error('Error exporting data:', error);
-      alert('Terjadi kesalahan saat mengekspor data');
+      console.error('Error exporting current data:', error);
+      alert('Terjadi kesalahan saat mengekspor data saat ini');
     }
   }
 
   return (
-    <section className="space-y-4 fade-in">
+    <>
+      <section className="space-y-4 fade-in">
       <h2 className="text-2xl font-bold text-gray-900 inline-block border-b-2 border-sky-400 pb-1">Database</h2>
 
       {/* Search and Action Buttons */}
@@ -203,12 +313,17 @@ export default function Database() {
           </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-          {/* <button className="text-blue-600 hover:text-blue-800 text-sm font-medium px-3 py-2 rounded-md border border-blue-200 hover:bg-blue-50 w-full sm:w-auto text-center">Import Data</button> */}
           <button 
-            onClick={exportToExcel}
+            onClick={exportCurrentDataToExcel}
+            className="text-green-600 hover:text-green-800 text-sm font-medium px-3 py-2 rounded-md border border-green-200 hover:bg-green-50 w-full sm:w-auto text-center"
+          >
+            Ekspor Data Saat Ini
+          </button>
+          <button 
+            onClick={() => setShowExportModal(true)}
             className="text-blue-600 hover:text-blue-800 text-sm font-medium px-3 py-2 rounded-md border border-blue-200 hover:bg-blue-50 w-full sm:w-auto text-center"
           >
-            Export Data
+            Pilih Ekspor Data
           </button>
           {authUtils.hasPermission('add') && (
             <Link
@@ -266,7 +381,7 @@ export default function Database() {
                         >
                           Hapus
                         </button>
-                      )}
+      )}
                     </div>
                   </td>
                 </tr>
@@ -305,9 +420,237 @@ export default function Database() {
           </div>
         </div>
       </div>
-
-
     </section>
+
+    {showExportModal && (
+        <div 
+          className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex justify-center items-center z-50"
+          onClick={() => setShowExportModal(false)} // Close when clicking outside
+        >
+          <div 
+            className="relative p-4 border w-11/12 sm:w-4/5 md:w-3/5 lg:w-2/5 xl:w-1/3 shadow-lg rounded-md bg-white h-full overflow-y-auto"
+            onClick={e => e.stopPropagation()} // Prevent closing when clicking inside modal
+          >
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-900">Export Data</h3>
+              <button 
+                onClick={() => setShowExportModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="mt-2 text-gray-600">
+              <div className="mb-2">
+                <label className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    className="form-checkbox"
+                    checked={exportAllData}
+                    onChange={(e) => setExportAllData(e.target.checked)}
+                  />
+                  <span className="ml-2 text-gray-700">Semua Data</span>
+                </label>
+              </div>
+
+              {!exportAllData && (
+                <div className="mb-2">
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Pilih Status:</label>
+                  <div className="mt-1 space-y-1">
+                    <label className="inline-flex items-center">
+                      <input
+                        type="checkbox"
+                        className="form-checkbox"
+                        checked={selectAllStatuses}
+                        onChange={(e) => {
+                          setSelectAllStatuses(e.target.checked);
+                          if (e.target.checked) {
+                            setSelectedStatuses([]);
+                          }
+                        }}
+                      />
+                      <span className="ml-2 text-gray-700">Semua Status</span>
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex flex-col">
+                        {["Pelajar", "Lulus Pelajar", "Kerja", "Mahasiswa"].map(status => (
+                          <label key={status} className="inline-flex items-center">
+                            <input
+                              type="checkbox"
+                              className="form-checkbox"
+                              value={status}
+                              checked={selectedStatuses.includes(status) && !selectAllStatuses}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedStatuses([...selectedStatuses, e.target.value]);
+                                  setSelectAllStatuses(false);
+                                } else {
+                                  setSelectedStatuses(selectedStatuses.filter(s => s !== e.target.value));
+                                }
+                              }}
+                              disabled={selectAllStatuses}
+                            />
+                            <span className="ml-2 text-gray-700">{status}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <div className="flex flex-col">
+                        {["Mahasiswa & Kerja", "MS", "MT"].map(status => (
+                          <label key={status} className="inline-flex items-center">
+                            <input
+                              type="checkbox"
+                              className="form-checkbox"
+                              value={status}
+                              checked={selectedStatuses.includes(status) && !selectAllStatuses}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedStatuses([...selectedStatuses, e.target.value]);
+                                  setSelectAllStatuses(false);
+                                } else {
+                                  setSelectedStatuses(selectedStatuses.filter(s => s !== e.target.value));
+                                }
+                              }}
+                              disabled={selectAllStatuses}
+                            />
+                            <span className="ml-2 text-gray-700">{status}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!exportAllData && (
+                <div className="space-y-4">
+                  <div className="mb-2">
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Kategori Usia:</label>
+                    <div className="mt-1 grid grid-cols-2 gap-2">
+                      <label className="inline-flex items-center">
+                        <input
+                          type="radio"
+                          className="form-radio"
+                          name="ageCategory"
+                          value="Remaja"
+                          checked={ageCategory === 'Remaja'}
+                          onChange={(e) => setAgeCategory(e.target.value as 'Remaja' | 'Pra-Nikah' | 'Keduanya')}
+                        />
+                        <span className="ml-2 text-gray-700">Remaja</span>
+                      </label>
+                      <label className="inline-flex items-center">
+                        <input
+                          type="radio"
+                          className="form-radio"
+                          name="ageCategory"
+                          value="Pra-Nikah"
+                          checked={ageCategory === 'Pra-Nikah'}
+                          onChange={(e) => setAgeCategory(e.target.value as 'Remaja' | 'Pra-Nikah' | 'Keduanya')}
+                        />
+                        <span className="ml-2 text-gray-700">Pra-Nikah</span>
+                      </label>
+                    </div>
+                    <div className="">
+                      <label className="inline-flex items-center">
+                        <input
+                          type="radio"
+                          className="form-radio"
+                          name="ageCategory"
+                          value="Keduanya"
+                          checked={ageCategory === 'Keduanya'}
+                          onChange={(e) => setAgeCategory(e.target.value as 'Remaja' | 'Pra-Nikah' | 'Keduanya')}
+                        />
+                        <span className="ml-2 text-gray-700">Semua Usia</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Pilih Kelompok:</label>
+                    <div className="mt-1 space-y-1">
+                      <label className="inline-flex items-center">
+                        <input
+                          type="radio"
+                          className="form-radio"
+                          name="kelompokCategory"
+                          value="Semua Kelompok"
+                          checked={selectedKelompok === 'Semua Kelompok'}
+                          onChange={(e) => setSelectedKelompok(e.target.value)}
+                        />
+                        <span className="ml-2 text-gray-700">Semua Kelompok</span>
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex flex-col">
+                          {["Linggar", "Parakan Muncang", "Bojong Koneng"].map(kelompok => (
+                            <label key={kelompok} className="inline-flex items-center">
+                              <input
+                                type="radio"
+                                className="form-radio"
+                                name="kelompokCategory"
+                                value={kelompok}
+                                checked={selectedKelompok === kelompok}
+                                onChange={(e) => setSelectedKelompok(e.target.value)}
+                              />
+                              <span className="ml-2 text-gray-700">{kelompok}</span>
+                            </label>
+                          ))}
+                        </div>
+                        <div className="flex flex-col">
+                          {["Cikopo", "Cikancung 1", "Cikancung 2"].map(kelompok => (
+                            <label key={kelompok} className="inline-flex items-center">
+                              <input
+                                type="radio"
+                                className="form-radio"
+                                name="kelompokCategory"
+                                value={kelompok}
+                                checked={selectedKelompok === kelompok}
+                                onChange={(e) => setSelectedKelompok(e.target.value)}
+                              />
+                              <span className="ml-2 text-gray-700">{kelompok}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <p className="text-sm text-gray-500">Jumlah data yang akan diekspor: {filteredDataForExport.length}</p>
+
+              <div className="mt-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Format Export:</label>
+                <select
+                  className="px-1 py-1 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-sky-300 focus:ring focus:ring-sky-200 focus:ring-opacity-50"
+                  value={exportFormat}
+                  onChange={(e) => setExportFormat(e.target.value as 'xlsx' | 'csv')}
+                >
+                  <option value="xlsx">Excel (xlsx)</option>
+                  <option value="csv">CSV</option>
+                </select>
+              </div>
+            </div>
+            <div className="items-center px-4 py-3 flex justify-end gap-2">
+              <button
+                id="cancel-button"
+                className="px-4 py-2 bg-gray-200 text-gray-800 text-base font-medium rounded-md shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                onClick={() => setShowExportModal(false)}
+                disabled={exportLoading}
+              >
+                Cancel
+              </button>
+              <button
+                id="export-button"
+                className="px-4 py-2 bg-blue-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onClick={handleExport}
+                disabled={exportLoading}
+              >
+                {exportLoading ? 'Exporting...' : 'Export'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
