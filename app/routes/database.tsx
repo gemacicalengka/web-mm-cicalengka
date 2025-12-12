@@ -135,7 +135,7 @@ export default function Database() {
     }
 
     return filtered;
-  }, [items, exportAllData, selectedStatuses, ageCategory]);
+  }, [items, exportAllData, selectedStatuses, ageCategory, selectedKelompok]);
 
   // Reset page when search changes
   useEffect(() => {
