@@ -129,7 +129,7 @@ export default function App() {
         className={
           (mounted ? "transition-all duration-700 ease-out " : "") +
           "border-r border-gray-200 bg-white " +
-          (sidebarOpen ? "w-64" : "w-16") + " " +
+          (sidebarOpen ? "w-55" : "w-16") + " " +
           "hidden md:block"
         }
       >
@@ -173,6 +173,7 @@ export default function App() {
             <SidebarLink to="/database" label="Database" open={sidebarOpen} icon={DatabaseIcon} />
             <SidebarLink to="/laporan" label="Laporan" open={sidebarOpen} icon={ReportIcon} />
             <SidebarLink to="/informasi" label="Informasi" open={sidebarOpen} icon={InfoIcon} />
+            <SidebarLink to="/tabel" label="Tabel" open={sidebarOpen} icon={TableIcon} />
           </nav>
         </div>
       </aside>
@@ -192,7 +193,7 @@ export default function App() {
             </svg>
           </button>
           
-          <h1 className="text-lg font-semibold text-white">Admin Dashboard</h1>
+          <h1 className="text-lg font-bold text-white px-4">Admin Dashboard</h1>
           <div className="relative flex items-center gap-2" ref={profileRef}>
             <button
               type="button"
@@ -236,6 +237,7 @@ export default function App() {
               <MobileNavLink to="/database" label="Database" icon={DatabaseIcon} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink to="/laporan" label="Laporan" icon={ReportIcon} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink to="/informasi" label="Informasi" icon={InfoIcon} onClick={() => setMobileMenuOpen(false)} />
+              <MobileNavLink to="/tabel" label="Tabel" icon={TableIcon} onClick={() => setMobileMenuOpen(false)} />
             </nav>
           </div>
         )}
@@ -391,6 +393,14 @@ function InfoIcon({ className }: { className?: string }) {
       <line strokeWidth="1.5" x1="16" y1="13" x2="8" y2="13"/>
       <line strokeWidth="1.5" x1="16" y1="17" x2="8" y2="17"/>
       <polyline strokeWidth="1.5" points="10,9 9,9 8,9"/>
+    </svg>
+  );
+}
+
+function TableIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className={className}>
+      <path strokeWidth="1.5" d="M12 3v18M3 9.5h18M3 14.5h18M3 4h18a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z"/>
     </svg>
   );
 }
