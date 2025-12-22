@@ -16,9 +16,55 @@ type DatabaseItem = {
   nama: string;
   jenis_kelamin: "L" | "P";
   kelompok: "Linggar" | "Parakan Muncang" | "Cikopo" | "Bojong Koneng" | "Cikancung 1" | "Cikancung 2";
-  tgl_lahir: string;
+  tgl_lahir: string | null;
   status: "Pelajar" | "Lulus Pelajar" | "Mahasiswa" | "Mahasiswa & Kerja" | "Lulus Kuliah" | "Kerja" | "MS" | "MT";
 };
+
+function isValidDateParts(year: number, month: number, day: number) {
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return false;
+  if (year < 1000 || year > 9999) return false;
+  if (month < 1 || month > 12) return false;
+  if (day < 1) return false;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  return day <= daysInMonth;
+}
+
+function normalizeTanggalLahir(rawValue: string): { value: string | null; error?: string } {
+  const trimmed = rawValue.trim();
+  if (!trimmed) return { value: null };
+  if (trimmed.toLowerCase() === "dd/mm/yyyy") return { value: null };
+
+  const ymdMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (ymdMatch) {
+    const year = Number(ymdMatch[1]);
+    const month = Number(ymdMatch[2]);
+    const day = Number(ymdMatch[3]);
+    if (!isValidDateParts(year, month, day)) return { value: null, error: "Tanggal lahir tidak valid." };
+    return { value: trimmed };
+  }
+
+  const dmyMatch = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (dmyMatch) {
+    const day = Number(dmyMatch[1]);
+    const month = Number(dmyMatch[2]);
+    const year = Number(dmyMatch[3]);
+    if (!isValidDateParts(year, month, day)) return { value: null, error: "Tanggal lahir tidak valid." };
+    const mm = String(month).padStart(2, "0");
+    const dd = String(day).padStart(2, "0");
+    return { value: `${year}-${mm}-${dd}` };
+  }
+
+  return { value: null, error: "Format tanggal lahir tidak valid." };
+}
+
+function toDateInputValue(rawValue: string | null) {
+  if (!rawValue) return "";
+  const trimmed = rawValue.trim();
+  if (!trimmed) return "";
+  if (trimmed.includes("T")) return trimmed.split("T")[0] ?? "";
+  const normalized = normalizeTanggalLahir(trimmed);
+  return normalized.value ?? "";
+}
 
 export default function ProsesEditData() {
   const navigate = useNavigate();
@@ -37,6 +83,7 @@ export default function ProsesEditData() {
   // Validation state
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Load current item from Supabase
   useEffect(() => {
@@ -63,7 +110,7 @@ export default function ProsesEditData() {
         setNama(data.nama);
         setJenisKelamin(data.jenis_kelamin);
         setKelompok(data.kelompok);
-        setTanggalLahir(data.tgl_lahir);
+        setTanggalLahir(toDateInputValue(data.tgl_lahir));
         setStatus(data.status);
       } catch (error) {
         console.error('Error:', error);
@@ -80,7 +127,8 @@ export default function ProsesEditData() {
     if (!nama.trim()) newErrors.nama = "Data harus diisi.";
     if (!jenisKelamin) newErrors.jenisKelamin = "Data harus diisi.";
     if (!kelompok) newErrors.kelompok = "Data harus diisi.";
-    if (!tanggalLahir) newErrors.tanggalLahir = "Data harus diisi.";
+    const normalizedTanggalLahir = normalizeTanggalLahir(tanggalLahir);
+    if (normalizedTanggalLahir.error) newErrors.tanggalLahir = normalizedTanggalLahir.error;
     if (!status) newErrors.status = "Data harus diisi.";
     
     setErrors(newErrors);
@@ -92,22 +140,25 @@ export default function ProsesEditData() {
     
     if (!validateForm() || !currentItem) return;
     
+    setSubmitError(null);
     setLoading(true);
     
     try {
+      const normalizedTanggalLahir = normalizeTanggalLahir(tanggalLahir);
       const { error } = await supabase
         .from('data_generus')
         .update({
           nama: nama.trim(),
           jenis_kelamin: jenisKelamin as "L" | "P",
           kelompok: kelompok as DatabaseItem["kelompok"],
-          tgl_lahir: tanggalLahir,
+          tgl_lahir: normalizedTanggalLahir.value,
           status: status as DatabaseItem["status"],
         })
         .eq('id', currentItem.id);
       
       if (error) {
         console.error('Error updating data:', error);
+        setSubmitError(`Gagal menyimpan perubahan: ${error.message}`);
         setLoading(false);
         return;
       }
@@ -115,6 +166,7 @@ export default function ProsesEditData() {
       navigate(kegiatanId ? `/absensi/edit/${kegiatanId}` : "/absensi");
     } catch (error) {
       console.error('Error:', error);
+      setSubmitError("Terjadi kesalahan saat menyimpan perubahan. Silakan coba lagi.");
       setLoading(false);
     }
   }
@@ -139,6 +191,11 @@ export default function ProsesEditData() {
       <h2 className="text-2xl font-bold text-gray-900 inline-block border-b-2 border-sky-400 pb-1">Absensi - Edit Data</h2>
 
       <form onSubmit={handleSubmit} className="rounded-xl border border-gray-200 bg-white p-6 space-y-6">
+        {submitError && (
+          <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {submitError}
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Nama */}
           <div>
@@ -215,7 +272,7 @@ export default function ProsesEditData() {
           {/* Tanggal Lahir */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tanggal Lahir <span className="text-red-500">*</span>
+              Tanggal Lahir <span className="text-gray-500 text-xs">(opsional)</span>
             </label>
             <input
               type="date"
@@ -225,6 +282,7 @@ export default function ProsesEditData() {
                 errors.tanggalLahir ? "border-red-500" : "border-gray-300"
               }`}
             />
+            {/* <p className="mt-1 text-xs text-gray-500">Kosong atau “dd/mm/yyyy” akan disimpan sebagai kosong.</p> */}
             {errors.tanggalLahir && <p className="mt-1 text-sm text-red-500">{errors.tanggalLahir}</p>}
           </div>
 

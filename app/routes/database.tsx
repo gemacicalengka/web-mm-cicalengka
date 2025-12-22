@@ -17,7 +17,7 @@ type DatabaseItem = {
   nama: string;
   jenis_kelamin: "L" | "P";
   kelompok: "Linggar" | "Parakan Muncang" | "Cikopo" | "Bojong Koneng" | "Cikancung 1" | "Cikancung 2";
-  tgl_lahir: string;
+  tgl_lahir: string | null;
   status: "Pelajar" | "Lulus Pelajar" | "Mahasiswa" | "Mahasiswa & Kerja" | "Lulus Kuliah" | "Kerja" | "MS" | "MT";
 };
 
@@ -85,12 +85,18 @@ export default function Database() {
     const q = query.trim().toLowerCase();
     let data = items.filter((item) => {
       if (!q) return true;
+      const tglLahirSearch = (() => {
+        if (!item.tgl_lahir) return "";
+        const d = new Date(item.tgl_lahir);
+        if (Number.isNaN(d.getTime())) return "";
+        return d.toLocaleDateString("id-ID").toLowerCase();
+      })();
       return (
         item.nama.toLowerCase().includes(q) ||
         item.jenis_kelamin.toLowerCase().includes(q) ||
         item.kelompok.toLowerCase().includes(q) ||
         item.status.toLowerCase().includes(q) ||
-        new Date(item.tgl_lahir).toLocaleDateString("id-ID").toLowerCase().includes(q)
+        tglLahirSearch.includes(q)
       );
     });
     // Sort data alphabetically by name
@@ -119,7 +125,10 @@ export default function Database() {
     // Filter by age category
     if (ageCategory !== 'Keduanya') {
       filtered = filtered.filter(item => {
-        const age = new Date().getFullYear() - new Date(item.tgl_lahir).getFullYear();
+        if (!item.tgl_lahir) return false;
+        const birthDate = new Date(item.tgl_lahir);
+        if (Number.isNaN(birthDate.getTime())) return false;
+        const age = new Date().getFullYear() - birthDate.getFullYear();
         if (ageCategory === 'Remaja') {
           return age >= 13 && age <= 18;
         } else if (ageCategory === 'Pra-Nikah') {
@@ -191,13 +200,11 @@ export default function Database() {
     }
   }
 
-  function formatDate(dateString: string): string {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('id-ID');
-    } catch {
-      return dateString;
-    }
+  function formatDate(dateString: string | null): string {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return "-";
+    return date.toLocaleDateString('id-ID');
   }
 
   function handleExport() {

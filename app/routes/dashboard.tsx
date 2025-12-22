@@ -9,7 +9,7 @@ interface DatabaseItem {
   jenis_kelamin: string;
   kelompok: string;
   status: string;
-  tgl_lahir: string;
+  tgl_lahir: string | null;
 }
 
 interface KegiatanItem {
@@ -61,8 +61,10 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   // Helper function to calculate age from birth date
-  const calculateAge = (dob: string) => {
+  const calculateAge = (dob: string | null | undefined) => {
+    if (!dob) return null;
     const birthDate = new Date(dob);
+    if (Number.isNaN(birthDate.getTime())) return null;
     const today = new Date();
     let age = today.getFullYear() - birthDate.getFullYear();
     const m = today.getMonth() - birthDate.getMonth();
@@ -101,8 +103,14 @@ export default function Dashboard() {
         const { lakiLaki: praNikahL, perempuan: praNikahP } = getGenderBreakdown(praNikahData);
         const { lakiLaki: remajaL, perempuan: remajaP } = getGenderBreakdown(remajaData);
 
-        const usia17PlusData = (data || []).filter(item => calculateAge(item.tgl_lahir) >= 17);
-        const usia20PlusData = (data || []).filter(item => calculateAge(item.tgl_lahir) >= 20);
+        const usia17PlusData = (data || []).filter(item => {
+          const age = calculateAge(item.tgl_lahir);
+          return age !== null && age >= 17;
+        });
+        const usia20PlusData = (data || []).filter(item => {
+          const age = calculateAge(item.tgl_lahir);
+          return age !== null && age >= 20;
+        });
 
         const { lakiLaki: usia17L, perempuan: usia17P } = getGenderBreakdown(usia17PlusData);
         const { lakiLaki: usia20L, perempuan: usia20P } = getGenderBreakdown(usia20PlusData);

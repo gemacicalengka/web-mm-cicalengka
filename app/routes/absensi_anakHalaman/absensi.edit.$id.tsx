@@ -17,7 +17,7 @@ interface DatabaseItem {
   jenis_kelamin: string;
   kelompok: string;
   status: string;
-  tgl_lahir: string;
+  tgl_lahir: string | null;
 }
 
 interface AttendanceItem {
