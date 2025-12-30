@@ -169,6 +169,7 @@ export default function DatabaseEdit() {
         return;
       }
       
+      alert("Perubahan data berhasil disimpan.");
       navigate("/database");
     } catch (error) {
       console.error('Error:', error);

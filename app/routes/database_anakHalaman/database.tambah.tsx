@@ -124,6 +124,7 @@ export default function DatabaseTambah() {
         return;
       }
       
+      alert("Data berhasil ditambahkan.");
       navigate("/database");
     } catch (error) {
       console.error('Error:', error);

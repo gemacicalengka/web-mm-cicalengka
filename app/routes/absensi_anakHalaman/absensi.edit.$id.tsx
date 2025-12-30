@@ -36,6 +36,8 @@ interface AttendanceDisplay {
   status_kehadiran: 'Belum' | 'Hadir' | 'Izin';
   generus_id: number;
   attendance_id?: number;
+  tgl_lahir: string | null;
+  status: string;
 }
 
 export function meta({}: Route.MetaArgs) {
@@ -140,7 +142,9 @@ export default function AbsensiEdit() {
             kelompok: member.kelompok,
             status_kehadiran: attendanceRecord?.status_kehadiran || 'Belum' as const,
             generus_id: member.id,
-            attendance_id: attendanceRecord?.id
+            attendance_id: attendanceRecord?.id,
+            tgl_lahir: member.tgl_lahir,
+            status: member.status
           };
         });
 
@@ -287,6 +291,13 @@ export default function AbsensiEdit() {
     }
   };
 
+  function formatDate(dateString: string | null): string {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return "-";
+    return date.toLocaleDateString('id-ID');
+  }
+
   if (loading) {
     return (
       <section className="space-y-4">
@@ -359,6 +370,8 @@ export default function AbsensiEdit() {
                 <th className="px-4 py-2 text-left font-semibold text-gray-700 w-12">No</th>
                 <th className="px-4 py-2 text-left font-semibold text-gray-700 w-48">Nama</th>
                 <th className="px-4 py-2 text-left font-semibold text-gray-700 w-32">Kelompok</th>
+                <th className="px-4 py-2 text-left font-semibold text-gray-700 w-28">Tanggal Lahir</th>
+                <th className="px-4 py-2 text-left font-semibold text-gray-700 w-36">Status</th>
                 <th className="px-4 py-2 text-left font-semibold text-gray-700 w-36">Status Kehadiran</th>
                 <th className="px-4 py-2 text-right font-semibold text-gray-700 w-40">Aksi</th>
               </tr>
@@ -366,13 +379,15 @@ export default function AbsensiEdit() {
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td className="px-4 py-6 text-center text-gray-500" colSpan={5}>Memuat data...</td>
+                  <td className="px-4 py-6 text-center text-gray-500" colSpan={7}>Memuat data...</td>
                 </tr>
               ) : paged.map((item, idx) => (
                 <tr key={item.generus_id} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                   <td className="px-4 py-2 text-gray-700">{startIdx + idx + 1}</td>
                   <td className="px-4 py-2 text-gray-900">{item.nama}</td>
                   <td className="px-4 py-2 text-gray-700">{item.kelompok}</td>
+                  <td className="px-4 py-2 text-gray-700">{formatDate(item.tgl_lahir)}</td>
+                  <td className="px-4 py-2 text-gray-700">{item.status}</td>
                   <td className="px-4 py-2">
                     <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${getStatusColor(item.status_kehadiran)}`}>
                       {item.status_kehadiran}
@@ -404,7 +419,7 @@ export default function AbsensiEdit() {
                           to={`/proses_editData/${item.generus_id}?kegiatan_id=${kegiatan?.id}`}
                           className="inline-flex items-center rounded-md bg-blue-500 px-3 py-1.5 text-white text-xs font-medium hover:bg-blue-600 w-full sm:w-auto justify-center"
                         >
-                          Edit
+                          <i className="fas fa-pen" aria-hidden="true"></i>
                         </Link>
                       )}
                       {authUtils.hasPermission('delete') && (
@@ -412,7 +427,7 @@ export default function AbsensiEdit() {
                           onClick={() => deleteAttendance(item.generus_id)}
                           className="inline-flex items-center rounded-md bg-rose-500 px-3 py-1.5 text-white text-xs font-medium hover:bg-rose-600 w-full sm:w-auto justify-center"
                         >
-                          Hapus
+                          <i className="fas fa-trash" aria-hidden="true"></i>
                         </button>
                       )}
                     </div>
@@ -421,7 +436,7 @@ export default function AbsensiEdit() {
               ))}
               {filteredAttendance.length === 0 && (
                 <tr>
-                  <td className="px-4 py-6 text-center text-gray-500" colSpan={5}>Belum ada data.</td>
+                  <td className="px-4 py-6 text-center text-gray-500" colSpan={7}>Belum ada data.</td>
                 </tr>
               )}
             </tbody>

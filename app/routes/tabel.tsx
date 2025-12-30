@@ -50,6 +50,36 @@ type EditableGenerusItem = GenerusItem & {
   is_deleted?: boolean; 
 };
 
+// Daftar pengecualian nama yang tidak dimasukkan ke dalam kelompok
+const EXCLUSION_LIST = [
+  "Dede Hilman Fauzi",
+  "Alfian Ridwan Fauzi",
+  "Muhammad Akmal Baihakhi",
+  "Ashafa Multazam",
+  "Revan Muhammad Nur Falah",
+  "Muhammad Bilal Mardhiyyano Azizi",
+  "Risa Fitria Khoirina",
+  "Nurul Fajar",
+  "Sherly Lydya Findianti",
+  "Aulia Firdiannisa",
+  "Hudaya Khoirul Anam",
+  "Rofa Rofiandi Akbar",
+  "Muhammad Rijal Mutaqin",
+  "Akmal Nabhan Ibrahim",
+  "Muhammad Deiphila Aziz Lianoto",
+  "Rokib Ibnu Setya Akibi",
+  "Hernan Alif Fauzi",
+  "Mario Abdillah Alhaq",
+  "Aisyah Putri",
+  "Novita Alfarizi",
+  "Nur Afni Hidayati",
+  "Intan Aulia Solihat",
+  "Adelia Pramesthi Putri",
+  "Sabila Agnia",
+  "Nurist Akyasil Akmal",
+  "Rayza Fauzan Al Habsy"
+];
+
 export default function Informasi() {
   const [kegiatanList, setKegiatanList] = useState<KegiatanItem[]>([]);
   const [loadingKegiatan, setLoadingKegiatan] = useState(true);
@@ -83,13 +113,54 @@ export default function Informasi() {
     );
   };
 
-  const handleDeleteGenerus = (generusId: number) => {
-    setEditableGenerusList(prevList =>
-      prevList.map(generus =>
-        generus.id === generusId ? { ...generus, is_deleted: true } : generus
-      )
-    );
-  };
+  const handleDeleteGenerus = async (generusId: number) => {
+     if (!selectedKegiatanId) return;
+ 
+     try {
+       // Cari nama generus untuk menghapus dari tabel grup jika ada
+       const generusToDelete = editableGenerusList.find(g => g.id === generusId);
+       const generusName = generusToDelete?.nama;
+
+       // 1. Update status_kehadiran di tabel absensi menjadi 'Belum'
+       const { error: absensiError } = await supabase
+         .from('absensi')
+         .update({ status_kehadiran: 'Belum' })
+         .eq('generus_id', generusId)
+         .eq('kegiatan_id', selectedKegiatanId);
+ 
+       if (absensiError) {
+         console.error('Error updating absensi status:', absensiError);
+         alert('Gagal mengubah status kehadiran.');
+         return;
+       }
+
+       // 2. Hapus dari tabel grup jika nama ditemukan
+       if (generusName) {
+         await supabase
+           .from('grup')
+           .delete()
+           .eq('id_kegiatan', selectedKegiatanId)
+           .eq('nama', generusName);
+       }
+ 
+       // 3. Tampilkan alert sukses
+       alert(`Data "${generusName || ''}" berhasil dihapus dari kelompok dan status kehadiran diubah menjadi "Belum"!`);
+ 
+       // 4. Update local state editableGenerusList
+       setEditableGenerusList(prevList =>
+         prevList.map(generus =>
+           generus.id === generusId ? { ...generus, is_deleted: true } : generus
+         )
+       );
+ 
+       // 5. Re-fetch data untuk memastikan UI konsisten dengan DB
+       await fetchAbsensiAndGenerus();
+ 
+     } catch (error) {
+       console.error('Unexpected error during delete:', error);
+       alert('Terjadi kesalahan saat menghapus data.');
+     }
+   };
 
   const handleSave = async () => {
     if (selectedKegiatanId === null) return;
@@ -253,58 +324,59 @@ export default function Informasi() {
     fetchKegiatan();
   }, []);
 
-  // Fetch absensi and generus data based on selectedKegiatanId
-  useEffect(() => {
+  // Move fetch function outside useEffect so it can be called after delete
+  async function fetchAbsensiAndGenerus() {
+    if (!selectedKegiatanId) {
+      setAbsensiData([]);
+      setGenerusData([]);
+      return;
+    }
 
-    async function fetchAbsensiAndGenerus() {
-      if (!selectedKegiatanId) {
+    try {
+      setLoadingAbsensiGenerus(true);
+      const { data: absensi, error: absensiError } = await supabase
+        .from('absensi')
+        .select('id, kegiatan_id, generus_id, status_kehadiran')
+        .eq('kegiatan_id', selectedKegiatanId);
+
+      if (absensiError) {
+        console.error('Error fetching absensi:', absensiError);
         setAbsensiData([]);
         setGenerusData([]);
-          return;
+        return;
       }
 
-      try {
-        setLoadingAbsensiGenerus(true);
-        const { data: absensi, error: absensiError } = await supabase
-          .from('absensi')
-          .select('id, kegiatan_id, generus_id, status_kehadiran')
-          .eq('kegiatan_id', selectedKegiatanId);
+      setAbsensiData(absensi || []);
 
-        if (absensiError) {
-          console.error('Error fetching absensi:', absensiError);
-          setAbsensiData([]);
+      const databaseIds = (absensi || []).map(item => item.generus_id);
+      const uniqueDatabaseIds = [...new Set(databaseIds)];
+
+      if (uniqueDatabaseIds.length > 0) {
+        const { data: generus, error: generusError } = await supabase
+          .from('data_generus')
+          .select('id, nama, jenis_kelamin, kelompok')
+          .in('id', uniqueDatabaseIds);
+
+        if (generusError) {
+          console.error('Error fetching generus:', generusError);
           setGenerusData([]);
           return;
         }
-
-        setAbsensiData(absensi || []);
-
-        const databaseIds = (absensi || []).map(item => item.generus_id);
-        const uniqueDatabaseIds = [...new Set(databaseIds)];
-
-        if (uniqueDatabaseIds.length > 0) {
-          const { data: generus, error: generusError } = await supabase
-            .from('data_generus')
-            .select('id, nama, jenis_kelamin, kelompok')
-            .in('id', uniqueDatabaseIds);
-
-          if (generusError) {
-            console.error('Error fetching generus:', generusError);
-            setGenerusData([]);
-            return;
-          }
-          setGenerusData(generus || []);
-        } else {
-          console.log('No unique database IDs found, clearing generus data.');
-          setGenerusData([]);
-        }
-
-      } catch (error) {
-        console.error('Unexpected error fetching absensi and generus:', error);
-      } finally {
-        setLoadingAbsensiGenerus(false);
+        setGenerusData(generus || []);
+      } else {
+        console.log('No unique database IDs found, clearing generus data.');
+        setGenerusData([]);
       }
+
+    } catch (error) {
+      console.error('Unexpected error fetching absensi and generus:', error);
+    } finally {
+      setLoadingAbsensiGenerus(false);
     }
+  }
+
+  // Fetch absensi and generus data based on selectedKegiatanId
+  useEffect(() => {
     fetchAbsensiAndGenerus();
   }, [selectedKegiatanId]);
 
@@ -317,13 +389,14 @@ export default function Informasi() {
 
     const hadirGenerus: GenerusItem[] = [];
     absensiData.forEach(absensi => {
-              if (absensi.status_kehadiran === 'Hadir') {
-                const generus = generusData.find(g => g.id === absensi.generus_id);
-                if (generus) {
-                  hadirGenerus.push(generus);
-                } else {
-                }
-              }
+      if (absensi.status_kehadiran === 'Hadir') {
+        const generus = generusData.find(g => g.id === absensi.generus_id);
+        // Implementasi logika pengecualian: 
+        // Jika nama termasuk dalam daftar EXCLUSION_LIST, jangan masukkan ke kelompok
+        if (generus && !EXCLUSION_LIST.includes(generus.nama)) {
+          hadirGenerus.push(generus);
+        }
+      }
     });
 
             const lakiLakiHadir = hadirGenerus.filter(g => g.jenis_kelamin === 'L');
