@@ -165,10 +165,13 @@ export default function Database() {
   }, []);
 
   async function remove(id: number) {
-    if (!confirm("Apakah Anda yakin ingin menghapus data ini?")) return;
+    const itemToDelete = items.find(it => it.id === id);
+    const nama = itemToDelete?.nama || 'data ini';
+
+    if (!confirm(`Apakah Anda yakin ingin menghapus "${nama}" secara permanen? Semua riwayat kehadiran dan data grup orang tersebut juga akan dihapus.`)) return;
     
     try {
-      // First, delete related absensi records
+      // 1. Delete related absensi records
       const { error: absensiError } = await supabase
         .from('absensi')
         .delete()
@@ -179,8 +182,20 @@ export default function Database() {
         alert('Error deleting related attendance records: ' + absensiError.message);
         return;
       }
+
+      // 2. Delete from grup table (based on name)
+      if (itemToDelete?.nama) {
+        const { error: grupError } = await supabase
+          .from('grup')
+          .delete()
+          .eq('nama', itemToDelete.nama);
+        
+        if (grupError) {
+          console.error('Error deleting related group records:', grupError);
+        }
+      }
       
-      // Then delete the data_generus record
+      // 3. Delete the data_generus record
       const { error } = await supabase
         .from('data_generus')
         .delete()
@@ -193,7 +208,7 @@ export default function Database() {
       }
       
       setItems((prev) => prev.filter((it) => it.id !== id));
-      alert('Data berhasil dihapus!');
+      alert(`Data "${nama}" berhasil dihapus secara permanen!`);
     } catch (error) {
       console.error('Error:', error);
       alert('Unexpected error occurred while deleting data.');

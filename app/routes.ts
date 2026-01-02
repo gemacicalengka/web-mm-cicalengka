@@ -13,6 +13,6 @@ export default [
   route("/database/edit/:id", "routes/database_anakHalaman/database.edit.$id.tsx"),
   route("/laporan", "routes/laporan.tsx"),
   route("/informasi", "routes/informasi.tsx"),
-  route("/tabel", "routes/tabel.tsx"),
+  // route("/tabel", "routes/tabel.tsx"), // Navigasi ke halaman tabel sengaja dinonaktifkan
 ] satisfies RouteConfig;
 //

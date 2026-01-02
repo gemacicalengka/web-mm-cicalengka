@@ -177,7 +177,7 @@ export default function App() {
             <SidebarLink to="/database" label="Database" open={sidebarOpen} icon={DatabaseIcon} />
             <SidebarLink to="/laporan" label="Laporan" open={sidebarOpen} icon={ReportIcon} />
             <SidebarLink to="/informasi" label="Informasi" open={sidebarOpen} icon={InfoIcon} />
-            <SidebarLink to="/tabel" label="Tabel" open={sidebarOpen} icon={TableIcon} />
+            {/* <SidebarLink to="/tabel" label="Tabel" open={sidebarOpen} icon={TableIcon} /> */} {/* Navigasi ke halaman tabel sengaja dinonaktifkan */}
           </nav>
         </div>
       </aside>
@@ -241,7 +241,7 @@ export default function App() {
               <MobileNavLink to="/database" label="Database" icon={DatabaseIcon} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink to="/laporan" label="Laporan" icon={ReportIcon} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink to="/informasi" label="Informasi" icon={InfoIcon} onClick={() => setMobileMenuOpen(false)} />
-              <MobileNavLink to="/tabel" label="Tabel" icon={TableIcon} onClick={() => setMobileMenuOpen(false)} />
+              {/* <MobileNavLink to="/tabel" label="Tabel" icon={TableIcon} onClick={() => setMobileMenuOpen(false)} /> */} {/* Navigasi ke halaman tabel sengaja dinonaktifkan */}
             </nav>
           </div>
         )}

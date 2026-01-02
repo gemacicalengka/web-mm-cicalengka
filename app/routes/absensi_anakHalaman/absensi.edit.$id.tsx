@@ -249,36 +249,58 @@ export default function AbsensiEdit() {
   };
 
   const deleteAttendance = async (generusId: number) => {
-    const confirmed = confirm('Apakah Anda yakin ingin menghapus data kehadiran ini?');
+    const person = attendanceData.find(item => item.generus_id === generusId);
+    const nama = person?.nama || 'data ini';
+    
+    const confirmed = confirm(`Apakah Anda yakin ingin menghapus "${nama}" secara permanen dari database? Tindakan ini juga akan menghapus semua riwayat kehadiran dan data grup orang tersebut.`);
     if (!confirmed) return;
 
     try {
-      const existingRecord = attendanceData.find(item => item.generus_id === generusId);
+      // 1. Hapus semua riwayat absensi orang tersebut
+      const { error: absensiError } = await supabase
+        .from('absensi')
+        .delete()
+        .eq('generus_id', generusId);
       
-      if (existingRecord?.attendance_id) {
-        const { error } = await supabase
-          .from('absensi')
+      if (absensiError) {
+        console.error('Error deleting attendance records:', absensiError);
+        alert('Gagal menghapus riwayat kehadiran: ' + absensiError.message);
+        return;
+      }
+
+      // 2. Hapus data dari tabel grup (berdasarkan nama)
+      if (person?.nama) {
+        const { error: grupError } = await supabase
+          .from('grup')
           .delete()
-          .eq('id', existingRecord.attendance_id);
+          .eq('nama', person.nama);
         
-        if (error) {
-          console.error('Error deleting attendance:', error);
-          alert('Gagal menghapus data kehadiran');
-          return;
+        if (grupError) {
+          console.error('Error deleting group records:', grupError);
+          // Kita lanjutkan saja jika error di sini, karena mungkin tidak ada di grup
         }
       }
 
-      // Reset to default status
-      setAttendanceData(prev => 
-        prev.map(item => 
-          item.generus_id === generusId 
-            ? { ...item, status_kehadiran: 'Belum' as const, attendance_id: undefined }
-            : item
-        )
-      );
+      // 3. Hapus data utama dari data_generus
+      const { error: generusError } = await supabase
+        .from('data_generus')
+        .delete()
+        .eq('id', generusId);
+      
+      if (generusError) {
+        console.error('Error deleting generus record:', generusError);
+        alert('Gagal menghapus data generus: ' + generusError.message);
+        return;
+      }
+
+      // 4. Update local state - hapus dari list
+      setAttendanceData(prev => prev.filter(item => item.generus_id !== generusId));
+      setMembers(prev => prev.filter(item => item.id !== generusId));
+      
+      alert(`Data "${nama}" berhasil dihapus secara permanen.`);
     } catch (error) {
       console.error('Error:', error);
-      alert('Terjadi kesalahan saat menghapus data');
+      alert('Terjadi kesalahan saat menghapus data.');
     }
   };
 
